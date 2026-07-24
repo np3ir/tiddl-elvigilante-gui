@@ -1482,7 +1482,7 @@ class TiddlGui:
         stamp = datetime.datetime.now().strftime("%H:%M:%S")
         self._log_buffer.append((stamp, line))
         now = time.monotonic()
-        if now - self._log_last_flush >= 0.3 or len(self._log_buffer) >= 80:
+        if now - self._log_last_flush >= 0.5 or len(self._log_buffer) >= 120:
             self.flush_log()
 
     def flush_log(self):
@@ -1503,9 +1503,13 @@ class TiddlGui:
             )
             self._log_lines.append(f"[{stamp}] {line}")
         self._log_buffer.clear()
-        if len(self.log_view.controls) > 1200:
-            del self.log_view.controls[:400]
-            del self._log_lines[:400]
+        # Keep the on-screen ListView small: Flet re-diffs every child on each
+        # patch, so a large list makes each flush O(n) and freezes the render
+        # on long downloads. The full text stays in _log_lines for "Copy log".
+        if len(self.log_view.controls) > 300:
+            del self.log_view.controls[: len(self.log_view.controls) - 250]
+        if len(self._log_lines) > 5000:
+            del self._log_lines[: len(self._log_lines) - 5000]
         self.refresh(self.log_view)
 
     async def on_copy_log(self, e):
