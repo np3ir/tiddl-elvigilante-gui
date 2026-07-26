@@ -1,2 +1,6 @@
 flet==0.86.1
 tomlkit>=0.13
+# tiddl empaquetado dentro del app (binario unico). flet build lo incluye leyendo
+# este requirements. Apunta al fork corregido; para el hook de cancelacion in-process
+# se mergea feat/cancel-hook a main.
+tiddl @ git+https://github.com/np3ir/tiddl-elvigilante.git@main
