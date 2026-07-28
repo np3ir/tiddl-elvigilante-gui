@@ -55,6 +55,24 @@ try:
 except Exception:
     tiddl_cancel = None
 
+
+def _tiddl_commit() -> str:
+    """Short git commit of the bundled tiddl-elvigilante (empty if unknown).
+    Read from the pip direct_url.json shipped in the dist-info — no import of
+    tiddl.cli.app (which would reconfigure stdout and break the embedded app)."""
+    try:
+        import importlib.metadata as _md
+        import json as _json
+        raw = _md.distribution("tiddl-elvigilante").read_text("direct_url.json")
+        if raw:
+            return (_json.loads(raw).get("vcs_info") or {}).get("commit_id", "")[:8]
+    except Exception:
+        pass
+    return ""
+
+
+TIDDL_COMMIT = _tiddl_commit()
+
 try:
     import tomllib
 except ModuleNotFoundError:  # Python < 3.11
@@ -1005,7 +1023,11 @@ class TiddlGui:
                 self.now_text,
                 ft.Row(
                     [
-                        ft.Text(f"v{APP_VERSION}", size=self.fs - 1, color=self.pal["gray"]),
+                        ft.Text(
+                            f"v{APP_VERSION}" + (f" · tiddl {TIDDL_COMMIT}" if TIDDL_COMMIT else ""),
+                            size=self.fs - 1,
+                            color=self.pal["gray"],
+                        ),
                         ft.Container(expand=True),
                         ft.TextButton(
                             content=self.t("copy_log"),
