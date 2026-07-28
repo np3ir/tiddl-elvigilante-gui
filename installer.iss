@@ -1,9 +1,9 @@
-; Instalador de tiddl by ElVigilante (GUI + CLI standalone + ffmpeg).
+; Instalador de tiddl by ElVigilante (GUI binario unico + ffmpeg).
 ; Compilar con: ISCC.exe installer.iss
 ; Requiere haber corrido antes:
-;   1. build_windows.ps1               -> C:\tiddl-gui\build\windows\  (GUI)
-;   2. PyInstaller (ver memoria)       -> C:\tiddl-gui\cli-build\dist\tiddl.exe
-;   3. ffmpeg en C:\ffmpeg\bin\ffmpeg.exe
+;   1. build_windows.ps1               -> C:\tiddl-gui\build\windows\  (GUI con tiddl embebido)
+;   2. ffmpeg en C:\ffmpeg\bin\ffmpeg.exe
+; Ya NO se compila un tiddl.exe aparte: tiddl viaja dentro del app (ver requirements.txt).
 
 #define MyAppName "tiddl by ElVigilante"
 #ifndef MyAppVersion
@@ -39,11 +39,9 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-; GUI (carpeta completa de flet build)
+; GUI binario unico (carpeta completa de flet build - tiddl va embebido)
 Source: "C:\tiddl-gui\build\windows\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-; CLI standalone (PyInstaller onefile)
-Source: "C:\tiddl-release\cli-build\dist\tiddl.exe"; DestDir: "{app}"; Flags: ignoreversion
-; ffmpeg (requerido por tiddl para el remux)
+; ffmpeg (requerido por tiddl para el remux; la GUI antepone {app} al PATH)
 Source: "C:\ffmpeg\bin\ffmpeg.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]

@@ -2,8 +2,9 @@
 
 Paste TIDAL links, pick quality, download. A Settings tab exposes paths,
 naming templates and performance options, QBDLX-style. The heavy lifting is
-done by the existing `tiddl` CLI run as a subprocess, so every core feature
-(skip database, metadata enrichment, retries, delays) works unchanged.
+done by tiddl, imported and run IN-PROCESS (single binary - no separate
+tiddl.exe), so every core feature (skip database, metadata enrichment,
+retries, delays) works unchanged.
 Settings are passed as CLI flags per run; "Save as defaults" writes them
 back to tiddl's own config.toml (with a timestamped backup).
 UI language is switchable (English/Spanish), persisted in gui.json.
@@ -12,22 +13,47 @@ UI language is switchable (English/Spanish), persisted in gui.json.
 from __future__ import annotations
 
 import datetime
+import io
 import os
 import re
 import shutil
-import signal
-import subprocess
 import sys
 import time
 from pathlib import Path
 
 IS_WIN = sys.platform == "win32"
-# Hide the console window of child processes on Windows; no-op elsewhere.
-CREATIONFLAGS = subprocess.CREATE_NO_WINDOW if IS_WIN else 0
-TIDDL_BIN = "tiddl.exe" if IS_WIN else "tiddl"
+
+# --- Single-binary mode ---------------------------------------------------
+# tiddl runs IN-PROCESS (imported), not as a separate tiddl.exe subprocess.
+# tiddl resolves its data dir (auth/config/cache) from TIDDL_PATH at import
+# time, so pin it to the user profile BEFORE the first tiddl import. A wide
+# COLUMNS keeps rich (force_terminal) from wrapping the progress frames the
+# log parser reads. The app dir is prepended to PATH so a bundled ffmpeg
+# sitting next to the executable is found.
+os.environ.setdefault("TIDDL_PATH", str(Path.home() / ".tiddl"))
+os.environ.setdefault("COLUMNS", "400")
+try:
+    os.environ["PATH"] = (
+        str(Path(sys.executable).resolve().parent) + os.pathsep + os.environ.get("PATH", "")
+    )
+except Exception:
+    pass
 
 import flet as ft
 import tomlkit
+
+try:
+    import tiddl  # noqa: F401  bundled in single-binary mode
+    TIDDL_AVAILABLE = True
+except Exception:
+    TIDDL_AVAILABLE = False
+
+# Cooperative cancel lives in feat/cancel-hook; optional so the GUI still runs
+# against a tiddl that predates it (cancel then only takes effect between runs).
+try:
+    from tiddl.core import cancel as tiddl_cancel
+except Exception:
+    tiddl_cancel = None
 
 try:
     import tomllib
@@ -35,7 +61,7 @@ except ModuleNotFoundError:  # Python < 3.11
     tomllib = None
 
 # Bump this every release; the built installer version should match.
-APP_VERSION = "1.0.6"
+APP_VERSION = "1.0.7"
 GUI_REPO = "np3ir/tiddl-gui"
 RELEASES_URL = f"https://github.com/{GUI_REPO}/releases/latest"
 API_LATEST = f"https://api.github.com/repos/{GUI_REPO}/releases/latest"
@@ -77,6 +103,46 @@ HEART_RE = re.compile(r"^\[(\d+)/(\d+)\]\s")
 PROG_FRAME_RE = re.compile(r"^[\d.]+s\b.*?(\d+)/(\d+)")
 # Rich braille spinner characters (in-flight track frames)
 SPINNER_RE = re.compile(r"[⠀-⣿]")
+
+
+class _LineSink(io.TextIOBase):
+    """Capture tiddl's forced-terminal rich stream and emit it line by line,
+    exactly like iterating a subprocess pipe. isatty()->True keeps rich in
+    ANSI mode (tiddl already sets force_terminal=True, so ANSI codes flow
+    through and the log parser strips them as before)."""
+
+    def __init__(self, on_line):
+        self._on_line = on_line
+        self._buf = ""
+
+    def isatty(self) -> bool:
+        return True
+
+    def writable(self) -> bool:
+        return True
+
+    def write(self, s) -> int:
+        if not isinstance(s, str):
+            s = str(s)
+        self._buf += s
+        while True:
+            i_n = self._buf.find("\n")
+            i_r = self._buf.find("\r")
+            idx = min([x for x in (i_n, i_r) if x >= 0], default=-1)
+            if idx < 0:
+                break
+            line, self._buf = self._buf[:idx], self._buf[idx + 1:]
+            if line:
+                self._on_line(line)
+        return len(s)
+
+    def drain(self) -> None:
+        if self._buf:
+            line, self._buf = self._buf, ""
+            self._on_line(line)
+
+    def flush(self) -> None:
+        pass
 
 TEMPLATE_VARS = (
     "{item.title} {item.artist} {item.artists} {item.number} "
@@ -485,23 +551,44 @@ def save_gui_settings(data: dict):
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
-def find_tiddl() -> str | None:
-    """Locate the tiddl CLI: next to this app first (installed bundle),
-    then the working directory, then the system PATH (dev setup)."""
-    candidates = []
-    for base in (sys.executable, sys.argv[0]):
+def run_tiddl(argv: list[str], on_line) -> int:
+    """Run tiddl's CLI in-process, streaming its stdout lines to on_line().
+
+    Replaces the old `subprocess.Popen([tiddl.exe, ...])`: tiddl is now bundled
+    and imported, so there is no separate executable. Returns the CLI exit code.
+    MUST be called from a worker thread (tiddl runs its own asyncio loop, and
+    stdout is redirected process-wide for the duration of the call).
+
+    CRITICAL: we invoke tiddl's Typer app with `standalone_mode=False`. The
+    default (True) makes Click call `sys.exit()` when the command finishes;
+    under flet's EMBEDDED Python (serious_python), a `sys.exit()` from this
+    worker thread HARD-KILLS the whole process (clean exit, no traceback), so
+    the packaged GUI vanished on the first tiddl call. standalone_mode=False
+    makes Click return normally instead of exiting, and raise real exceptions
+    (which we catch) instead of printing + exiting.
+    """
+    sink = _LineSink(on_line)
+    old_out, old_err, old_argv = sys.stdout, sys.stderr, sys.argv
+    sys.stdout = sink
+    sys.stderr = sink
+    try:
+        # Import AFTER redirecting: tiddl.cli.app's top-level runs
+        # `sys.stdout.reconfigure(...)`; with the sink (no reconfigure attr)
+        # already in place that call is skipped and flet's stdout is untouched.
+        from tiddl.cli.app import app as tiddl_app, _reorder_download_options
+        sys.argv = _reorder_download_options(["tiddl", *argv])
         try:
-            candidates.append(Path(base).resolve().parent / TIDDL_BIN)
-        except Exception:
-            pass
-    candidates.append(Path.cwd() / TIDDL_BIN)
-    for candidate in candidates:
-        try:
-            if candidate.is_file():
-                return str(candidate)
-        except Exception:
-            continue
-    return shutil.which("tiddl")
+            tiddl_app(standalone_mode=False)
+            return 0
+        except SystemExit as e:  # some paths still raise it; treat as exit code
+            code = e.code
+            return code if isinstance(code, int) else (0 if code is None else 1)
+    except Exception as e:  # surface a command failure into the log
+        on_line(f"Error: {type(e).__name__}: {e}")
+        return 1
+    finally:
+        sink.drain()
+        sys.stdout, sys.stderr, sys.argv = old_out, old_err, old_argv
 
 
 def download_lock_path() -> Path:
@@ -597,14 +684,13 @@ def meaningful_line(raw: str) -> str | None:
 class TiddlGui:
     def __init__(self, page: ft.Page):
         self.page = page
-        self.proc: subprocess.Popen | None = None
         self.running = False
         self.cancelled = False
         self._log_buffer: list[tuple[str, str]] = []
         self._log_last_flush = 0.0
         self._log_lines: list[str] = []
         self.cfg = load_tiddl_config()
-        self.tiddl_exe = find_tiddl()
+        self.tiddl_available = TIDDL_AVAILABLE
         gui_cfg = load_gui_settings()
         self.lang = gui_cfg.get("language", "en")
         if self.lang not in STRINGS:
@@ -629,14 +715,29 @@ class TiddlGui:
         text = STRINGS.get(self.lang, {}).get(key) or STRINGS["en"].get(key, key)
         return text.format(**kwargs) if kwargs else text
 
+    def _run_on_ui(self, fn):
+        """Run fn on the event-loop thread.
+
+        Flet diffs the control tree on the loop thread inside page.update().
+        Any mutation of a control's *list* property (e.g. log_view.controls)
+        MUST also happen on that thread - mutating it from a worker thread
+        while a diff is running desyncs the diff's cached key list from the
+        live list length and crashes with 'IndexError: list index out of
+        range' deep in flet's object_patch._compare_lists. Scheduling via
+        call_soon_threadsafe also wakes the sleeping loop so patches render
+        immediately instead of only on the next client event.
+        """
+        try:
+            loop = self.page.session.connection.loop
+            loop.call_soon_threadsafe(fn)
+        except Exception:
+            fn()
+
     def refresh(self, *controls):
         """Thread-safe page.update(), optionally scoped to specific controls.
 
-        Flet queues outbound patches with asyncio's put_nowait; called from a
-        worker thread that does NOT wake the sleeping event loop, so updates
-        only render when some client event (e.g. a window resize) arrives.
-        call_soon_threadsafe wakes the loop properly. Scoping the patch to the
-        changed control keeps heavy phases (log floods) from freezing the UI.
+        Scoping the patch to the changed control keeps heavy phases (log
+        floods) from freezing the UI.
         """
 
         def do():
@@ -645,11 +746,7 @@ class TiddlGui:
             else:
                 self.page.update()
 
-        try:
-            loop = self.page.session.connection.loop
-            loop.call_soon_threadsafe(do)
-        except Exception:
-            do()
+        self._run_on_ui(do)
 
     # ---------- config helpers ----------
 
@@ -732,7 +829,7 @@ class TiddlGui:
             )
         )
 
-        if not self.tiddl_exe:
+        if not self.tiddl_available:
             self.set_status(self.t("err_no_tiddl"), error=True)
             self.download_btn.disabled = True
         elif other_instance_downloading():
@@ -754,51 +851,15 @@ class TiddlGui:
 
     # ---------- auth ----------
 
-    def _cli_env(self) -> dict:
-        env = dict(
-            os.environ, PYTHONIOENCODING="utf-8", COLUMNS="400", PYTHONUNBUFFERED="1"
-        )
-        # Pin the CLI config to the user profile: the bundled tiddl runs from
-        # the install dir (e.g. Program Files), where its portable-mode
-        # exe-side config would not be writable.
-        env.setdefault("TIDDL_PATH", str(Path.home() / ".tiddl"))
-        # Bundled ffmpeg sits next to the tiddl binary; POSIX exec only
-        # searches PATH (and Finder-launched apps get a minimal one), so
-        # prepend that folder explicitly. Harmless on Windows too.
-        try:
-            env["PATH"] = str(Path(self.tiddl_exe).parent) + os.pathsep + env.get("PATH", "")
-        except Exception:
-            pass
-        return env
-
-    def _popen_kwargs(self) -> dict:
-        kwargs: dict = {"creationflags": CREATIONFLAGS} if IS_WIN else {"start_new_session": True}
-        return kwargs
-
-    def _kill_proc_tree(self, proc: subprocess.Popen):
-        if IS_WIN:
-            subprocess.run(
-                ["taskkill", "/PID", str(proc.pid), "/T", "/F"], capture_output=True
-            )
-        else:
-            try:
-                os.killpg(proc.pid, signal.SIGKILL)
-            except Exception:
-                proc.kill()
-
     def check_auth(self):
         """Probe auth state; tiddl has no /me endpoint, the refresh output is
         the source of truth (same technique as the LAUNCHER.BAT hardening)."""
+        lines: list[str] = []
         try:
-            out = subprocess.run(
-                [self.tiddl_exe, "auth", "refresh"],
-                capture_output=True, text=True, encoding="utf-8", errors="replace",
-                env=self._cli_env(), timeout=60,
-                creationflags=CREATIONFLAGS,
-            )
-            text = ANSI_RE.sub("", (out.stdout or "") + (out.stderr or ""))
+            run_tiddl(["auth", "refresh"], lines.append)
         except Exception:
             return
+        text = ANSI_RE.sub("", "\n".join(lines))
         if "Not logged in" in text or "log in" in text.lower():
             self.login_btn.visible = True
             self.refresh(self.login_btn)
@@ -817,27 +878,22 @@ class TiddlGui:
 
     def login_worker(self):
         success = False
+
+        def on_line(raw: str):
+            nonlocal success
+            line = ANSI_RE.sub("", raw).strip()
+            if "Go to" in line:
+                m = re.search(r"https://\S+", line)
+                if m:
+                    url = m.group().strip("'\"!.,")
+                    loop = self.page.session.connection.loop
+                    loop.call_soon_threadsafe(self.page.launch_url, url)
+                    self.set_status(self.t("login_wait"))
+            if "Logged in" in line:
+                success = True
+
         try:
-            proc = subprocess.Popen(
-                [self.tiddl_exe, "auth", "login"],
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, encoding="utf-8", errors="replace", bufsize=1,
-                env=self._cli_env(),
-                creationflags=CREATIONFLAGS,
-            )
-            assert proc.stdout is not None
-            for raw in proc.stdout:
-                line = ANSI_RE.sub("", raw).strip()
-                if "Go to" in line:
-                    m = re.search(r"https://\S+", line)
-                    if m:
-                        url = m.group().strip("'\"!.,")
-                        loop = self.page.session.connection.loop
-                        loop.call_soon_threadsafe(self.page.launch_url, url)
-                        self.set_status(self.t("login_wait"))
-                if "Logged in" in line:
-                    success = True
-            proc.wait()
+            run_tiddl(["auth", "login"], on_line)
         except Exception:
             pass
 
@@ -1489,8 +1545,14 @@ class TiddlGui:
         if not self._log_buffer:
             return
         self._log_last_flush = time.monotonic()
-        for stamp, line in self._log_buffer:
-            self.log_view.controls.append(
+        # Drain the buffer and build the new controls off the loop thread (safe -
+        # they are not mounted yet). The plain _log_lines list is only touched
+        # here and in on_copy_log after a flush, so it stays consistent.
+        batch = self._log_buffer
+        self._log_buffer = []
+        new_controls = []
+        for stamp, line in batch:
+            new_controls.append(
                 ft.Text(
                     spans=[
                         ft.TextSpan(f"[{stamp}] ", style=ft.TextStyle(color=self.pal["gray"])),
@@ -1502,15 +1564,22 @@ class TiddlGui:
                 )
             )
             self._log_lines.append(f"[{stamp}] {line}")
-        self._log_buffer.clear()
+        if len(self._log_lines) > 5000:
+            del self._log_lines[: len(self._log_lines) - 5000]
+
+        # Mutate the mounted ListView and diff it on the SAME (loop) thread so
+        # the two can never overlap. Doing the append/trim here instead of on
+        # the worker thread is what prevents the object_patch IndexError crash.
         # Keep the on-screen ListView small: Flet re-diffs every child on each
         # patch, so a large list makes each flush O(n) and freezes the render
         # on long downloads. The full text stays in _log_lines for "Copy log".
-        if len(self.log_view.controls) > 300:
-            del self.log_view.controls[: len(self.log_view.controls) - 250]
-        if len(self._log_lines) > 5000:
-            del self._log_lines[: len(self._log_lines) - 5000]
-        self.refresh(self.log_view)
+        def apply():
+            self.log_view.controls.extend(new_controls)
+            if len(self.log_view.controls) > 300:
+                del self.log_view.controls[: len(self.log_view.controls) - 250]
+            self.page.update(self.log_view)
+
+        self._run_on_ui(apply)
 
     async def on_copy_log(self, e):
         self.flush_log()
@@ -1548,8 +1617,9 @@ class TiddlGui:
         if key == getattr(self, "_last_prog", None):
             return
         self._last_prog = key
-        self.progress.value = min(1.0, done / total)
-        self.progress_label.value = f"{done}/{total}"
+        fraction = min(1.0, done / total)
+        self.progress.value = fraction
+        self.progress_label.value = f"{done}/{total} · {round(fraction * 100)}%"
         self.refresh(self.progress, self.progress_label)
 
     def set_now(self, text: str):
@@ -1731,7 +1801,7 @@ class TiddlGui:
         flags = self.settings_flags(base_override, singles=singles, videos=videos)
         if flags is None:
             return None
-        cmd = [self.tiddl_exe, "download", "-q", self.quality_dd.value or "high", *flags]
+        cmd = ["download", "-q", self.quality_dd.value or "high", *flags]
         if expand in ("albums", "artists", "tracks"):
             cmd.append(f"--{expand}")
         if self.noskip_cb.value:
@@ -1793,34 +1863,25 @@ class TiddlGui:
         self.page.run_thread(self.worker, cmds)
 
     def on_cancel(self, e):
+        # In-process there is no child to kill: signal tiddl's cooperative
+        # cancel flag. The download loop checks it at the top of each track,
+        # after acquiring the semaphore, and per chunk while streaming bytes,
+        # so the current track aborts and the queue drains.
         self.cancelled = True
-        if self.proc and self.proc.poll() is None:
-            self._kill_proc_tree(self.proc)
-            self.set_status(self.t("cancelled"))
+        if tiddl_cancel is not None:
+            tiddl_cancel.request_cancel()
+        self.set_status(self.t("cancelled"))
 
     def run_one(self, cmd: list[str]) -> tuple[int, int | None]:
-        # COLUMNS controls rich's console width in the child: a wide value
-        # stops the CLI from hard-wrapping lines, so the log wraps naturally
-        # to the window width instead of at 80 columns. PYTHONUNBUFFERED makes
-        # the child flush per write - without it, piped output arrives in 8KB
-        # bursts instead of line by line as each track finishes.
-        # cwd = tiddl's folder so a bundled ffmpeg.exe sitting next to it wins.
+        """Run one `download ...` invocation IN-PROCESS, parsing tiddl's
+        forced-terminal rich output line by line for progress, the now-playing
+        label and the human log - identical parsing to the old subprocess pipe,
+        just fed from run_tiddl()'s stdout capture."""
         last_line = None
         total = None
-        self.proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            bufsize=1,
-            env=self._cli_env(),
-            cwd=str(Path(self.tiddl_exe).parent),
-            **self._popen_kwargs(),
-        )
-        assert self.proc.stdout is not None
-        for raw in self.proc.stdout:
+
+        def on_line(raw: str):
+            nonlocal last_line, total
             stripped = ANSI_RE.sub("", raw).strip()
             # Visual progress: album counter of expanded runs takes priority;
             # otherwise use the CLI's own Total Progress frames (x/y items).
@@ -1845,21 +1906,25 @@ class TiddlGui:
 
             line = meaningful_line(raw)
             if not line or line == last_line:
-                continue
+                return
             last_line = line
             m = TOTAL_RE.search(line)
             if m:
                 total = int(m.group(1))
             if line.startswith("Auth token"):
                 self.set_status(line)
-                continue
+                return
             if line.startswith("Downloading "):
                 self.set_status(line)
             self.log(line)
-        return self.proc.wait(), total
+
+        code = run_tiddl(cmd, on_line)
+        return code, total
 
     def worker(self, cmds: list[list[str]]):
         self.cancelled = False
+        if tiddl_cancel is not None:
+            tiddl_cancel.clear()
         grand_total = 0
         worst_code = 0
         try:
