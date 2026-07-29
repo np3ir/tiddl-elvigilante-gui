@@ -20,8 +20,12 @@ brew install python ffmpeg cocoapods
 python3.14 -m venv ~/tiddl-venv          # o "$(brew --prefix)/bin/python3.14" si no está en el PATH
 source ~/tiddl-venv/bin/activate
 python -m pip install --upgrade pip
-pip install "git+https://github.com/np3ir/tiddl-elvigilante.git" pyinstaller "flet[all]==0.86.1" tomlkit
+pip install "flet[all]==0.86.1" tomlkit
 ```
+
+> tiddl NO se instala aquí: `flet build` lo embebe leyendo `requirements.txt`
+> (dependencia git, fijada a un commit), así la GUI corre tiddl in-process
+> (binario único). Por eso el venv solo necesita flet + tomlkit.
 
 > Nota: pega los comandos **sin las líneas de comentario** (las que empiezan con `#`);
 > zsh interpreta caracteres como `(` en los comentarios y da errores de "bad pattern".
@@ -33,14 +37,14 @@ git clone https://github.com/np3ir/tiddl-gui.git
 cd tiddl-gui
 source ~/tiddl-venv/bin/activate   # si abriste una terminal nueva
 chmod +x release_macos.sh
-./release_macos.sh 1.0.2           # o la version que toque
+./release_macos.sh 1.0.8           # o la version que toque
 ```
 
 - La **primera corrida** descarga el Flutter SDK de flet (~10-20 min extra);
   las siguientes son rápidas.
 - Al final imprime la ruta del DMG en `dist-mac/`.
-- El DMG incluye el binario `tiddl` standalone y `ffmpeg` dentro del `.app` —
-  el usuario final no necesita instalar nada más.
+- tiddl viaja **embebido dentro del `.app`** (in-process, binario único) y
+  `ffmpeg` se copia junto al ejecutable — el usuario final no instala nada más.
 
 ## 3. Probar
 
@@ -62,7 +66,7 @@ chmod +x release_macos.sh
 ```bash
 brew install gh
 gh auth login
-gh release upload v1.0.2 dist-mac/tiddl-ElVigilante-1.0.2-macos.dmg -R np3ir/tiddl-gui
+gh release upload v1.0.8 dist-mac/tiddl-ElVigilante-1.0.8-macos.dmg -R np3ir/tiddl-gui
 ```
 
 (O copia el DMG a otra máquina que ya tenga `gh` autenticado y súbelo desde allí.)
