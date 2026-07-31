@@ -282,10 +282,16 @@ STRINGS: dict[str, dict[str, str]] = {
         "opt_full_album": "Full album",
         "opt_only_track": "Only that track",
         "btn_login": "Log in to TIDAL",
+        "btn_logout": "Log out",
         "login_needed": "Not logged in to TIDAL - click 'Log in to TIDAL' to authenticate",
         "login_wait": "Complete the login in your browser - it opens TWICE (HiRes + Lossless), approve BOTH...",
         "login_ok": "Logged in to TIDAL",
         "login_fail": "Login failed or expired - try again",
+        "logout_title": "Log out of TIDAL?",
+        "logout_q": "This clears your session (both quality tokens). You'll need to log in again to download.",
+        "logout_confirm": "Log out",
+        "logout_wait": "Logging out...",
+        "logout_ok": "Logged out - log in again to download",
         "lock_busy_title": "Another window is downloading",
         "lock_busy_msg": (
             "To protect your TIDAL account from rate limits, only one window "
@@ -416,10 +422,16 @@ STRINGS: dict[str, dict[str, str]] = {
         "opt_full_album": "Álbum completo",
         "opt_only_track": "Solo esa canción",
         "btn_login": "Iniciar sesión en TIDAL",
+        "btn_logout": "Cerrar sesión",
         "login_needed": "Sin sesión de TIDAL - usa 'Iniciar sesión en TIDAL' para autenticarte",
         "login_wait": "Completa el login en tu navegador - se abre DOS veces (HiRes + Lossless), aprueba AMBAS...",
         "login_ok": "Sesión de TIDAL activa",
         "login_fail": "El login falló o expiró - inténtalo de nuevo",
+        "logout_title": "¿Cerrar sesión de TIDAL?",
+        "logout_q": "Esto borra tu sesión (los dos tokens de calidad). Tendrás que iniciar sesión de nuevo para descargar.",
+        "logout_confirm": "Cerrar sesión",
+        "logout_wait": "Cerrando sesión...",
+        "logout_ok": "Sesión cerrada - inicia sesión de nuevo para descargar",
         "lock_busy_title": "Otra ventana está descargando",
         "lock_busy_msg": (
             "Para proteger tu cuenta de TIDAL del rate limit, solo una ventana "
@@ -880,13 +892,48 @@ class TiddlGui:
         text = ANSI_RE.sub("", "\n".join(lines))
         if "Not logged in" in text or "log in" in text.lower():
             self.login_btn.visible = True
-            self.refresh(self.login_btn)
+            self.logout_btn.visible = False
+            self.refresh(self.login_btn, self.logout_btn)
             self.set_status(self.t("login_needed"), error=True)
         else:
+            # Logged in: offer logout instead of login.
+            self.login_btn.visible = False
+            self.logout_btn.visible = True
+            self.refresh(self.login_btn, self.logout_btn)
             for line in text.splitlines():
                 if line.strip().startswith("Auth token"):
                     self.set_status(line.strip())
                     break
+
+    def on_logout(self, e):
+        def confirm(_):
+            self.page.pop_dialog()
+            self.logout_btn.disabled = True
+            self.refresh(self.logout_btn)
+            self.set_status(self.t("logout_wait"))
+            self.page.run_thread(self.logout_worker)
+
+        dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(self.t("logout_title")),
+            content=ft.Text(self.t("logout_q")),
+            actions=[
+                ft.TextButton(content=self.t("btn_cancel"), on_click=lambda e: self.page.pop_dialog()),
+                ft.FilledButton(content=self.t("logout_confirm"), on_click=confirm),
+            ],
+        )
+        self.page.show_dialog(dlg)
+
+    def logout_worker(self):
+        try:
+            run_tiddl(["auth", "logout"], lambda _l: None)
+        except Exception:
+            pass
+        self.logout_btn.disabled = False
+        self.logout_btn.visible = False
+        self.login_btn.visible = True
+        self.refresh(self.logout_btn, self.login_btn)
+        self.set_status(self.t("logout_ok"), error=True)
 
     def on_login(self, e):
         self.login_btn.disabled = True
@@ -996,6 +1043,14 @@ class TiddlGui:
             on_click=self.on_login,
             visible=False,
         )
+        # Shown only while logged in (mutually exclusive with login_btn); lets
+        # the user end the TIDAL session / switch accounts from the GUI.
+        self.logout_btn = ft.TextButton(
+            content=self.t("btn_logout"),
+            icon=ft.Icons.LOGOUT,
+            on_click=self.on_logout,
+            visible=False,
+        )
         self.update_btn = ft.TextButton(
             content=self.t("update_available"),
             icon=ft.Icons.SYSTEM_UPDATE,
@@ -1030,6 +1085,7 @@ class TiddlGui:
                         self.noskip_cb,
                         ft.Container(expand=True),
                         self.update_btn,
+                        self.logout_btn,
                         self.login_btn,
                         self.download_btn,
                         self.cancel_btn,
