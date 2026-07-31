@@ -1,7 +1,7 @@
 <!--
 Plantilla de notas de release BILINGÜES. Copia esto, edita los "..." y úsalo:
 
-  gh release create vX.Y.Z <archivos...> -R np3ir/tiddl-gui \
+  gh release create vX.Y.Z <archivos...> -R np3ir/tiddl-elvigilante-gui \
     --title "tiddl GUI X.Y.Z" --notes-file RELEASE_NOTES_TEMPLATE.md
 
 (o `gh release edit vX.Y.Z --notes-file RELEASE_NOTES_TEMPLATE.md` para una ya publicada).

@@ -70,4 +70,4 @@ hdiutil create -volname "tiddl by ElVigilante" -srcfolder "$STAGE" -ov -format U
 echo ""
 echo "RELEASE OK -> dist-mac/tiddl-ElVigilante-$VERSION-macos.dmg"
 echo "Subir al release de GitHub:"
-echo "  gh release upload v$VERSION dist-mac/tiddl-ElVigilante-$VERSION-macos.dmg -R np3ir/tiddl-gui"
+echo "  gh release upload v$VERSION dist-mac/tiddl-ElVigilante-$VERSION-macos.dmg -R np3ir/tiddl-elvigilante-gui"

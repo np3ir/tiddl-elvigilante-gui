@@ -45,7 +45,7 @@ tiddl by ElVigilante $VERSION (Linux x64)
 2. Ejecuta:          ./tiddl-gui
 3. Inicia sesion en TIDAL desde la app y configura tus carpetas en Settings.
 
-https://github.com/np3ir/tiddl-gui
+https://github.com/np3ir/tiddl-elvigilante-gui
 EOF
 
 echo "[3/3] Creando tar.gz..."

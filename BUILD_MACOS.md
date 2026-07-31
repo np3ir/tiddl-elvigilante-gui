@@ -33,8 +33,8 @@ pip install "flet[all]==0.86.1" tomlkit
 ## 2. Build
 
 ```bash
-git clone https://github.com/np3ir/tiddl-gui.git
-cd tiddl-gui
+git clone https://github.com/np3ir/tiddl-elvigilante-gui.git
+cd tiddl-elvigilante-gui
 source ~/tiddl-venv/bin/activate   # si abriste una terminal nueva
 chmod +x release_macos.sh
 ./release_macos.sh 1.0.8           # o la version que toque
@@ -66,7 +66,7 @@ chmod +x release_macos.sh
 ```bash
 brew install gh
 gh auth login
-gh release upload v1.0.8 dist-mac/tiddl-ElVigilante-1.0.8-macos.dmg -R np3ir/tiddl-gui
+gh release upload v1.0.8 dist-mac/tiddl-ElVigilante-1.0.8-macos.dmg -R np3ir/tiddl-elvigilante-gui
 ```
 
 (O copia el DMG a otra máquina que ya tenga `gh` autenticado y súbelo desde allí.)

@@ -80,7 +80,7 @@ except ModuleNotFoundError:  # Python < 3.11
 
 # Bump this every release; the built installer version should match.
 APP_VERSION = "1.0.10"
-GUI_REPO = "np3ir/tiddl-gui"
+GUI_REPO = "np3ir/tiddl-elvigilante-gui"
 RELEASES_URL = f"https://github.com/{GUI_REPO}/releases/latest"
 API_LATEST = f"https://api.github.com/repos/{GUI_REPO}/releases/latest"
 
