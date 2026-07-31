@@ -79,7 +79,7 @@ except ModuleNotFoundError:  # Python < 3.11
     tomllib = None
 
 # Bump this every release; the built installer version should match.
-APP_VERSION = "1.0.10"
+APP_VERSION = "1.0.11"
 GUI_REPO = "np3ir/tiddl-elvigilante-gui"
 RELEASES_URL = f"https://github.com/{GUI_REPO}/releases/latest"
 API_LATEST = f"https://api.github.com/repos/{GUI_REPO}/releases/latest"
@@ -283,7 +283,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "opt_only_track": "Only that track",
         "btn_login": "Log in to TIDAL",
         "login_needed": "Not logged in to TIDAL - click 'Log in to TIDAL' to authenticate",
-        "login_wait": "Complete the login in your browser...",
+        "login_wait": "Complete the login in your browser - it opens TWICE (HiRes + Lossless), approve BOTH...",
         "login_ok": "Logged in to TIDAL",
         "login_fail": "Login failed or expired - try again",
         "lock_busy_title": "Another window is downloading",
@@ -417,7 +417,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "opt_only_track": "Solo esa canción",
         "btn_login": "Iniciar sesión en TIDAL",
         "login_needed": "Sin sesión de TIDAL - usa 'Iniciar sesión en TIDAL' para autenticarte",
-        "login_wait": "Completa el login en tu navegador...",
+        "login_wait": "Completa el login en tu navegador - se abre DOS veces (HiRes + Lossless), aprueba AMBAS...",
         "login_ok": "Sesión de TIDAL activa",
         "login_fail": "El login falló o expiró - inténtalo de nuevo",
         "lock_busy_title": "Otra ventana está descargando",
@@ -895,25 +895,43 @@ class TiddlGui:
         self.page.run_thread(self.login_worker)
 
     def login_worker(self):
-        success = False
+        # The hybrid login prints TWO device-verification URLs — one for the
+        # HiRes (24-bit) client, one for the TV/LOSSLESS fallback — each as
+        # `[label] Ve a 'https://link.tidal.com/…'`. Open EVERY tidal device
+        # URL we see (matching the URL itself, not an English "Go to", which
+        # never matched tiddl's Spanish "Ve a"), so BOTH approvals prompt in
+        # the browser. Missing the 2nd is why `max` couldn't fetch 24-bit.
+        launched: set[str] = set()
 
         def on_line(raw: str):
-            nonlocal success
             line = ANSI_RE.sub("", raw).strip()
-            if "Go to" in line:
-                m = re.search(r"https://\S+", line)
-                if m:
-                    url = m.group().strip("'\"!.,")
+            for m in re.finditer(r"https://link\.tidal\.com/\S+", line):
+                url = m.group().strip("'\"!.,)")
+                if url not in launched:
+                    launched.add(url)
                     loop = self.page.session.connection.loop
                     loop.call_soon_threadsafe(self.page.launch_url, url)
                     self.set_status(self.t("login_wait"))
-            if "Logged in" in line:
-                success = True
 
         try:
             run_tiddl(["auth", "login"], on_line)
         except Exception:
             pass
+
+        # Success = BOTH hybrid tokens ended up on disk (HiRes primary +
+        # TV fallback). Relying on a "Logged in" line would pass with only
+        # one of the two approvals done — exactly the bug that left `max`
+        # without its 24-bit token.
+        import json as _json
+
+        def _has_token(name: str) -> bool:
+            try:
+                p = Path(os.environ.get("TIDDL_PATH", str(Path.home() / ".tiddl"))) / name
+                return bool((_json.loads(p.read_text("utf-8")) or {}).get("token"))
+            except Exception:
+                return False
+
+        success = _has_token("auth.json") and _has_token("auth_fallback.json")
 
         self.login_btn.disabled = False
         if success:
