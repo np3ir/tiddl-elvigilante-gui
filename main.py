@@ -404,7 +404,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "sec_perf": "Rendimiento y filtros",
         "embed_lyrics_cb": "Incrustar letras en los tags",
         "save_lrc_cb": "Guardar archivo de letras .lrc",
-        # --- nuevo: metadata / caratula ---
+        # --- new: metadata / cover ---
         "sec_metadata": "Metadata / etiquetas",
         "embed_cover_cb": "Incrustar la carátula en el archivo",
         "album_review_cb": "Incrustar reseña del álbum en el comentario",
@@ -416,7 +416,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "target_album": "Álbumes",
         "target_playlist": "Playlists",
         "target_mix": "Mixes",
-        # --- nuevo: descarga avanzada ---
+        # --- new: advanced download ---
         "sec_advanced": "Descarga avanzada",
         "video_quality": "Calidad de video",
         "hires_client": "Cliente HiRes",
@@ -426,11 +426,11 @@ STRINGS: dict[str, dict[str, str]] = {
         "max_tracks": "Máx tracks / sesión (0 = ∞)",
         "rewrite_cb": "Reescribir metadata en archivos existentes",
         "mtime_cb": "Fecha del archivo = fecha de lanzamiento",
-        # --- nuevo: m3u ---
+        # --- new: m3u ---
         "sec_m3u": "Listas (.m3u)",
         "m3u_save_cb": "Generar archivos de lista .m3u",
         "m3u_allowed_lbl": "Generar para:",
-        # --- nuevo: extras de nombres ---
+        # --- new: naming extras ---
         "tpl_mix": "Template de mix",
         "artist_sep": "Separador de artistas",
         "threads": "Hilos",
