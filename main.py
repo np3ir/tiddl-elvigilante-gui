@@ -87,6 +87,10 @@ API_LATEST = f"https://api.github.com/repos/{GUI_REPO}/releases/latest"
 QUALITIES = ["low", "normal", "high", "max"]
 SINGLES_FILTERS = ["none", "only", "include"]
 VIDEOS_FILTERS = ["none", "allow", "only"]
+VIDEO_QUALITIES = ["audio", "360", "480", "720", "1080", "fhd"]
+HIRES_CLIENTS = ["auto", "always", "never"]
+COVER_TARGETS = ["track", "album", "playlist"]
+M3U_TARGETS = ["album", "playlist", "mix"]
 
 
 def _parse_version(s: str) -> tuple:
@@ -231,6 +235,35 @@ STRINGS: dict[str, dict[str, str]] = {
         "sec_perf": "Performance and filters",
         "embed_lyrics_cb": "Embed lyrics in tags",
         "save_lrc_cb": "Save .lrc lyrics file",
+        # --- new: metadata / cover ---
+        "sec_metadata": "Metadata / tags",
+        "embed_cover_cb": "Embed cover art in the file",
+        "album_review_cb": "Embed album review in comment",
+        "sec_coverfile": "Cover file (.jpg)",
+        "cover_save_cb": "Save a cover.jpg next to the audio",
+        "cover_size": "Size (px, max 1280)",
+        "cover_allowed_lbl": "Save for:",
+        "target_track": "Tracks",
+        "target_album": "Albums",
+        "target_playlist": "Playlists",
+        "target_mix": "Mixes",
+        # --- new: advanced download ---
+        "sec_advanced": "Advanced download",
+        "video_quality": "Video quality",
+        "hires_client": "HiRes client",
+        "hires_client_hint": "auto = HiRes only at max quality (avoids 429); always/never force it",
+        "rpm": "Requests / min",
+        "concurrency": "Artist concurrency",
+        "max_tracks": "Max tracks / session (0 = ∞)",
+        "rewrite_cb": "Rewrite metadata on existing files",
+        "mtime_cb": "Set file date to release date",
+        # --- new: m3u ---
+        "sec_m3u": "Playlists (.m3u)",
+        "m3u_save_cb": "Generate .m3u playlist files",
+        "m3u_allowed_lbl": "Generate for:",
+        # --- new: naming extras ---
+        "tpl_mix": "Mix template",
+        "artist_sep": "Artist separator",
         "threads": "Threads",
         "track_delay": "Track delay (s)",
         "album_delay": "Album delay (s)",
@@ -371,6 +404,35 @@ STRINGS: dict[str, dict[str, str]] = {
         "sec_perf": "Rendimiento y filtros",
         "embed_lyrics_cb": "Incrustar letras en los tags",
         "save_lrc_cb": "Guardar archivo de letras .lrc",
+        # --- nuevo: metadata / caratula ---
+        "sec_metadata": "Metadata / etiquetas",
+        "embed_cover_cb": "Incrustar la carátula en el archivo",
+        "album_review_cb": "Incrustar reseña del álbum en el comentario",
+        "sec_coverfile": "Archivo de carátula (.jpg)",
+        "cover_save_cb": "Guardar un cover.jpg junto al audio",
+        "cover_size": "Tamaño (px, máx 1280)",
+        "cover_allowed_lbl": "Guardar para:",
+        "target_track": "Tracks",
+        "target_album": "Álbumes",
+        "target_playlist": "Playlists",
+        "target_mix": "Mixes",
+        # --- nuevo: descarga avanzada ---
+        "sec_advanced": "Descarga avanzada",
+        "video_quality": "Calidad de video",
+        "hires_client": "Cliente HiRes",
+        "hires_client_hint": "auto = HiRes solo en calidad máx (evita 429); always/never lo fuerzan",
+        "rpm": "Peticiones / min",
+        "concurrency": "Álbumes en paralelo (artista)",
+        "max_tracks": "Máx tracks / sesión (0 = ∞)",
+        "rewrite_cb": "Reescribir metadata en archivos existentes",
+        "mtime_cb": "Fecha del archivo = fecha de lanzamiento",
+        # --- nuevo: m3u ---
+        "sec_m3u": "Listas (.m3u)",
+        "m3u_save_cb": "Generar archivos de lista .m3u",
+        "m3u_allowed_lbl": "Generar para:",
+        # --- nuevo: extras de nombres ---
+        "tpl_mix": "Template de mix",
+        "artist_sep": "Separador de artistas",
         "threads": "Hilos",
         "track_delay": "Delay por track (s)",
         "album_delay": "Delay por álbum (s)",
@@ -549,8 +611,18 @@ HELP_FLAG_FMT = [
 STASH_FIELDS = [
     "f_download_path", "f_scan_path", "f_video_path", "f_playlist_path",
     "f_tpl_default", "f_tpl_track", "f_tpl_album", "f_tpl_playlist", "f_tpl_video",
+    "f_tpl_mix", "f_artist_sep",
     "f_threads", "f_track_delay", "f_artist_delay", "f_singles", "f_videos",
     "f_embed_lyrics", "f_save_lrc",
+    # metadata / cover
+    "f_cover", "f_album_review",
+    "f_cover_save", "f_cover_size",
+    "f_cover_track", "f_cover_album", "f_cover_playlist",
+    # advanced download
+    "f_video_quality", "f_hires_client", "f_rpm", "f_concurrency",
+    "f_max_tracks", "f_rewrite", "f_update_mtime",
+    # m3u
+    "f_m3u_save", "f_m3u_album", "f_m3u_playlist", "f_m3u_mix",
 ]
 
 
@@ -791,6 +863,14 @@ class TiddlGui:
     def cfg_meta(self, key: str, default=False):
         meta = self.cfg.get("metadata", {})
         return meta.get(key, default) if isinstance(meta, dict) else default
+
+    def cfg_cover(self, key: str, default=None):
+        cov = self.cfg.get("cover", {})
+        return cov.get(key, default) if isinstance(cov, dict) else default
+
+    def cfg_m3u(self, key: str, default=None):
+        m = self.cfg.get("m3u", {})
+        return m.get(key, default) if isinstance(m, dict) else default
 
     # ---------- UI ----------
 
@@ -1168,6 +1248,12 @@ class TiddlGui:
         self.f_tpl_album = ft.TextField(label=self.t("tpl_album"), value=str(self.cfg_tpl("album", "")))
         self.f_tpl_playlist = ft.TextField(label=self.t("tpl_playlist"), value=str(self.cfg_tpl("playlist", "")))
         self.f_tpl_video = ft.TextField(label=self.t("tpl_video"), value=str(self.cfg_tpl("video", "")))
+        self.f_tpl_mix = ft.TextField(label=self.t("tpl_mix"), value=str(self.cfg_tpl("mix", "")))
+        self.f_artist_sep = ft.TextField(
+            label=self.t("artist_sep"),
+            value=str(self.cfg_tpl("artist_separator", " / ") or " / "),
+            width=200,
+        )
 
         self.f_threads = ft.TextField(
             label=self.t("threads"), value=str(self.cfg_dl("threads_count", 1)), width=110
@@ -1200,6 +1286,68 @@ class TiddlGui:
         self.f_save_lrc = ft.Checkbox(
             label=self.t("save_lrc_cb"), value=bool(self.cfg_meta("save_lyrics"))
         )
+
+        # --- Metadata / tags ---
+        self.f_cover = ft.Checkbox(
+            label=self.t("embed_cover_cb"), value=bool(self.cfg_meta("cover"))
+        )
+        self.f_album_review = ft.Checkbox(
+            label=self.t("album_review_cb"), value=bool(self.cfg_meta("album_review"))
+        )
+
+        # --- Cover file (.jpg) ---
+        _cov_allowed = self.cfg_cover("allowed", []) or []
+        if not isinstance(_cov_allowed, list):
+            _cov_allowed = []
+        self.f_cover_save = ft.Checkbox(
+            label=self.t("cover_save_cb"), value=bool(self.cfg_cover("save", False))
+        )
+        self.f_cover_size = ft.TextField(
+            label=self.t("cover_size"), value=str(self.cfg_cover("size", 1280) or 1280), width=170
+        )
+        self.f_cover_track = ft.Checkbox(label=self.t("target_track"), value="track" in _cov_allowed)
+        self.f_cover_album = ft.Checkbox(label=self.t("target_album"), value="album" in _cov_allowed)
+        self.f_cover_playlist = ft.Checkbox(label=self.t("target_playlist"), value="playlist" in _cov_allowed)
+
+        # --- Advanced download ---
+        _vq = self.cfg_dl("video_quality", "fhd")
+        self.f_video_quality = ft.Dropdown(
+            label=self.t("video_quality"), width=150,
+            value=_vq if _vq in VIDEO_QUALITIES else "fhd",
+            options=[ft.DropdownOption(v) for v in VIDEO_QUALITIES],
+        )
+        _hc = self.cfg_dl("hires_client", "auto")
+        self.f_hires_client = ft.Dropdown(
+            label=self.t("hires_client"), width=150,
+            value=_hc if _hc in HIRES_CLIENTS else "auto",
+            options=[ft.DropdownOption(v) for v in HIRES_CLIENTS],
+        )
+        self.f_rpm = ft.TextField(
+            label=self.t("rpm"), value=str(self.cfg_dl("requests_per_minute", 20)), width=140
+        )
+        self.f_concurrency = ft.TextField(
+            label=self.t("concurrency"), value=str(self.cfg_dl("artist_concurrency", 1)), width=170
+        )
+        self.f_max_tracks = ft.TextField(
+            label=self.t("max_tracks"), value=str(self.cfg_dl("max_tracks_per_session", 0)), width=190
+        )
+        self.f_rewrite = ft.Checkbox(
+            label=self.t("rewrite_cb"), value=bool(self.cfg_dl("rewrite_metadata", False))
+        )
+        self.f_update_mtime = ft.Checkbox(
+            label=self.t("mtime_cb"), value=bool(self.cfg_dl("update_mtime", False))
+        )
+
+        # --- m3u ---
+        _m3u_allowed = self.cfg_m3u("allowed", []) or []
+        if not isinstance(_m3u_allowed, list):
+            _m3u_allowed = []
+        self.f_m3u_save = ft.Checkbox(
+            label=self.t("m3u_save_cb"), value=bool(self.cfg_m3u("save", False))
+        )
+        self.f_m3u_album = ft.Checkbox(label=self.t("target_album"), value="album" in _m3u_allowed)
+        self.f_m3u_playlist = ft.Checkbox(label=self.t("target_playlist"), value="playlist" in _m3u_allowed)
+        self.f_m3u_mix = ft.Checkbox(label=self.t("target_mix"), value="mix" in _m3u_allowed)
 
         self.lang_dd = ft.Dropdown(
             label=self.t("language"),
@@ -1268,6 +1416,8 @@ class TiddlGui:
                         self.f_tpl_album,
                         self.f_tpl_playlist,
                         self.f_tpl_video,
+                        self.f_tpl_mix,
+                        self.f_artist_sep,
                     ],
                 ),
                 section(
@@ -1277,8 +1427,46 @@ class TiddlGui:
                             [self.f_threads, self.f_track_delay, self.f_artist_delay, self.f_singles, self.f_videos],
                             wrap=True,
                         ),
+                    ],
+                ),
+                section(
+                    self.t("sec_metadata"),
+                    [
+                        ft.Row([self.f_cover, self.f_album_review], wrap=True),
                         ft.Row([self.f_embed_lyrics, self.f_save_lrc], wrap=True),
                     ],
+                ),
+                section(
+                    self.t("sec_coverfile"),
+                    [
+                        ft.Row([self.f_cover_save, self.f_cover_size], wrap=True,
+                               vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                        ft.Text(self.t("cover_allowed_lbl"), size=12, color=ft.Colors.OUTLINE),
+                        ft.Row([self.f_cover_track, self.f_cover_album, self.f_cover_playlist], wrap=True),
+                    ],
+                    expanded=False,
+                ),
+                section(
+                    self.t("sec_advanced"),
+                    [
+                        ft.Row(
+                            [self.f_video_quality, self.f_hires_client, self.f_rpm,
+                             self.f_concurrency, self.f_max_tracks],
+                            wrap=True, vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                        ),
+                        ft.Text(self.t("hires_client_hint"), size=11, color=ft.Colors.OUTLINE),
+                        ft.Row([self.f_rewrite, self.f_update_mtime], wrap=True),
+                    ],
+                    expanded=False,
+                ),
+                section(
+                    self.t("sec_m3u"),
+                    [
+                        self.f_m3u_save,
+                        ft.Text(self.t("m3u_allowed_lbl"), size=12, color=ft.Colors.OUTLINE),
+                        ft.Row([self.f_m3u_album, self.f_m3u_playlist, self.f_m3u_mix], wrap=True),
+                    ],
+                    expanded=False,
                 ),
                 ft.Container(height=10),
                 ft.Row(
@@ -1504,6 +1692,24 @@ class TiddlGui:
         flags.append("--embed-lyrics" if self.f_embed_lyrics.value else "--no-embed-lyrics")
         flags.append("--save-lyrics" if self.f_save_lrc.value else "--no-save-lyrics")
 
+        # Only EXISTING core options are passed as flags here: they're present in
+        # the command that the in-process run builds under the redirected stdout
+        # (see run_tiddl). video_quality/-vq, concurrency/-c, rewrite/-r are typer
+        # params (defaults bind at import) so they MUST be flags to change per run.
+        # All the NEWER options (cover, hires_client, m3u, etc.) are applied via
+        # apply_runtime_config() instead: passing them as flags would fail with
+        # "No such option" because tiddl's Typer command, built during the
+        # in-process embedded call, does NOT expose the dynamically-added flags —
+        # only the CLI-standalone build does. CONFIG mutation is immune to that.
+        if self.f_video_quality.value:
+            flags += ["-vq", self.f_video_quality.value]
+        try:
+            flags += ["-c", str(max(0, int(float((self.f_concurrency.value or "1").strip()))))]
+        except (ValueError, TypeError):
+            pass
+        if self.f_rewrite.value:
+            flags.append("-r")
+
         download_path = base_override or (self.f_download_path.value or "").strip()
         scan_path = base_override or (self.f_scan_path.value or "").strip()
         if download_path:
@@ -1535,6 +1741,8 @@ class TiddlGui:
         self.f_tpl_album.value = str(self.cfg_tpl("album", ""))
         self.f_tpl_playlist.value = str(self.cfg_tpl("playlist", ""))
         self.f_tpl_video.value = str(self.cfg_tpl("video", ""))
+        self.f_tpl_mix.value = str(self.cfg_tpl("mix", ""))
+        self.f_artist_sep.value = str(self.cfg_tpl("artist_separator", " / ") or " / ")
         self.f_threads.value = str(self.cfg_dl("threads_count", 1))
         self.f_track_delay.value = str(self.cfg_dl("track_delay", 3.0))
         self.f_artist_delay.value = str(self.cfg_dl("artist_delay", 8.0))
@@ -1542,6 +1750,33 @@ class TiddlGui:
         self.f_videos.value = self.cfg_dl("videos_filter", "none")
         self.f_embed_lyrics.value = bool(self.cfg_meta("embed_lyrics"))
         self.f_save_lrc.value = bool(self.cfg_meta("save_lyrics"))
+        # metadata / cover
+        self.f_cover.value = bool(self.cfg_meta("cover"))
+        self.f_album_review.value = bool(self.cfg_meta("album_review"))
+        _cov = self.cfg_cover("allowed", []) or []
+        _cov = _cov if isinstance(_cov, list) else []
+        self.f_cover_save.value = bool(self.cfg_cover("save", False))
+        self.f_cover_size.value = str(self.cfg_cover("size", 1280) or 1280)
+        self.f_cover_track.value = "track" in _cov
+        self.f_cover_album.value = "album" in _cov
+        self.f_cover_playlist.value = "playlist" in _cov
+        # advanced download
+        _vq = self.cfg_dl("video_quality", "fhd")
+        self.f_video_quality.value = _vq if _vq in VIDEO_QUALITIES else "fhd"
+        _hc = self.cfg_dl("hires_client", "auto")
+        self.f_hires_client.value = _hc if _hc in HIRES_CLIENTS else "auto"
+        self.f_rpm.value = str(self.cfg_dl("requests_per_minute", 20))
+        self.f_concurrency.value = str(self.cfg_dl("artist_concurrency", 1))
+        self.f_max_tracks.value = str(self.cfg_dl("max_tracks_per_session", 0))
+        self.f_rewrite.value = bool(self.cfg_dl("rewrite_metadata", False))
+        self.f_update_mtime.value = bool(self.cfg_dl("update_mtime", False))
+        # m3u
+        _m3u = self.cfg_m3u("allowed", []) or []
+        _m3u = _m3u if isinstance(_m3u, list) else []
+        self.f_m3u_save.value = bool(self.cfg_m3u("save", False))
+        self.f_m3u_album.value = "album" in _m3u
+        self.f_m3u_playlist.value = "playlist" in _m3u
+        self.f_m3u_mix.value = "mix" in _m3u
         self.settings_status.value = self.t("reloaded")
         self.refresh()
 
@@ -1552,6 +1787,29 @@ class TiddlGui:
             self.refresh()
             return
         threads, track_delay, artist_delay = nums
+
+        def _safe_int(val, default):
+            try:
+                return int(float(str(val).strip()))
+            except (ValueError, TypeError):
+                return default
+
+        rpm = max(0, _safe_int(self.f_rpm.value, 20))
+        concurrency = max(0, _safe_int(self.f_concurrency.value, 1))
+        max_tracks = max(0, _safe_int(self.f_max_tracks.value, 0))
+        cover_size = min(1280, max(1, _safe_int(self.f_cover_size.value, 1280)))
+        cover_allowed = [
+            t for t, cb in (
+                ("track", self.f_cover_track), ("album", self.f_cover_album),
+                ("playlist", self.f_cover_playlist),
+            ) if cb.value
+        ]
+        m3u_allowed = [
+            t for t, cb in (
+                ("album", self.f_m3u_album), ("playlist", self.f_m3u_playlist),
+                ("mix", self.f_m3u_mix),
+            ) if cb.value
+        ]
 
         cfg_path = config_file_path()
         try:
@@ -1567,11 +1825,18 @@ class TiddlGui:
                 doc["download"] = tomlkit.table()
             dl = doc["download"]
             dl["track_quality"] = self.quality_dd.value or "high"
+            dl["video_quality"] = self.f_video_quality.value or "fhd"
+            dl["hires_client"] = self.f_hires_client.value or "auto"
             dl["threads_count"] = threads
+            dl["requests_per_minute"] = rpm
             dl["track_delay"] = track_delay
             dl["artist_delay"] = artist_delay
+            dl["artist_concurrency"] = concurrency
+            dl["max_tracks_per_session"] = max_tracks
             dl["singles_filter"] = self.f_singles.value or "none"
             dl["videos_filter"] = self.f_videos.value or "none"
+            dl["rewrite_metadata"] = bool(self.f_rewrite.value)
+            dl["update_mtime"] = bool(self.f_update_mtime.value)
             for key, field in [
                 ("download_path", self.f_download_path),
                 ("scan_path", self.f_scan_path),
@@ -1585,6 +1850,19 @@ class TiddlGui:
                 doc["metadata"] = tomlkit.table()
             doc["metadata"]["embed_lyrics"] = bool(self.f_embed_lyrics.value)
             doc["metadata"]["save_lyrics"] = bool(self.f_save_lrc.value)
+            doc["metadata"]["cover"] = bool(self.f_cover.value)
+            doc["metadata"]["album_review"] = bool(self.f_album_review.value)
+
+            if "cover" not in doc:
+                doc["cover"] = tomlkit.table()
+            doc["cover"]["save"] = bool(self.f_cover_save.value)
+            doc["cover"]["size"] = cover_size
+            doc["cover"]["allowed"] = cover_allowed
+
+            if "m3u" not in doc:
+                doc["m3u"] = tomlkit.table()
+            doc["m3u"]["save"] = bool(self.f_m3u_save.value)
+            doc["m3u"]["allowed"] = m3u_allowed
 
             if "templates" not in doc:
                 doc["templates"] = tomlkit.table()
@@ -1595,6 +1873,7 @@ class TiddlGui:
                 ("album", self.f_tpl_album),
                 ("playlist", self.f_tpl_playlist),
                 ("video", self.f_tpl_video),
+                ("mix", self.f_tpl_mix),
             ]:
                 value = (field.value or "").strip()
                 # Never persist an empty template. An empty "default" in
@@ -1604,6 +1883,11 @@ class TiddlGui:
                     tpl[key] = value
                 elif key in tpl:
                     del tpl[key]
+            # artist_separator is not a path template; persist verbatim (may be
+            # " / ", ", ", etc). Only skip if the field was cleared entirely.
+            sep = self.f_artist_sep.value
+            if sep is not None and sep != "":
+                tpl["artist_separator"] = sep
 
             cfg_path.write_text(tomlkit.dumps(doc), encoding="utf-8")
 
@@ -1968,6 +2252,64 @@ class TiddlGui:
             tiddl_cancel.request_cancel()
         self.set_status(self.t("cancelled"))
 
+    def apply_runtime_config(self) -> None:
+        """Push the Settings options that have no usable in-process CLI flag into
+        the shared tiddl CONFIG object, right before a run.
+
+        tiddl runs in-process (see run_tiddl), so every module shares ONE CONFIG
+        object (`from ...config import CONFIG`); mutating it in place propagates
+        everywhere the download flow reads it at runtime. This is the ONLY robust
+        path for these options in the embedded GUI: the core DOES expose matching
+        CLI flags (--cover, --hires-client, --m3u, --mtf, --artist-separator, …)
+        for real command-line parity, but Typer's command as built during the
+        in-process, stdout-redirected call omits those dynamically-added flags,
+        so passing them would raise 'No such option'. CONFIG mutation sidesteps
+        the parser entirely. Best-effort: never let a bad field abort the run."""
+        def _int(val, default):
+            try:
+                return int(float(str(val).strip()))
+            except (ValueError, TypeError):
+                return default
+        try:
+            from tiddl.cli.config import CONFIG
+        except Exception as e:
+            self.log(f"(config sync skipped: {e})")
+            return
+        try:
+            CONFIG.metadata.cover = bool(self.f_cover.value)
+            CONFIG.metadata.album_review = bool(self.f_album_review.value)
+
+            CONFIG.cover.save = bool(self.f_cover_save.value)
+            CONFIG.cover.size = min(1280, max(1, _int(self.f_cover_size.value, 1280)))
+            CONFIG.cover.allowed = [
+                t for t, cb in (
+                    ("track", self.f_cover_track), ("album", self.f_cover_album),
+                    ("playlist", self.f_cover_playlist),
+                ) if cb.value
+            ]
+
+            CONFIG.download.hires_client = self.f_hires_client.value or "auto"
+            CONFIG.download.requests_per_minute = max(0, _int(self.f_rpm.value, 20))
+            CONFIG.download.update_mtime = bool(self.f_update_mtime.value)
+            CONFIG.download.max_tracks_per_session = max(0, _int(self.f_max_tracks.value, 0))
+
+            CONFIG.m3u.save = bool(self.f_m3u_save.value)
+            CONFIG.m3u.allowed = [
+                t for t, cb in (
+                    ("album", self.f_m3u_album), ("playlist", self.f_m3u_playlist),
+                    ("mix", self.f_m3u_mix),
+                ) if cb.value
+            ]
+
+            mix = (self.f_tpl_mix.value or "").strip()
+            if mix:
+                CONFIG.templates.mix = mix
+            sep = self.f_artist_sep.value
+            if sep is not None and sep != "":
+                CONFIG.templates.artist_separator = sep
+        except Exception as e:
+            self.log(f"(config sync partial: {e})")
+
     def run_one(self, cmd: list[str]) -> tuple[int, int | None]:
         """Run one `download ...` invocation IN-PROCESS, parsing tiddl's
         forced-terminal rich output line by line for progress, the now-playing
@@ -2019,6 +2361,7 @@ class TiddlGui:
                 self.set_status(line)
             self.log(line)
 
+        self.apply_runtime_config()
         code = run_tiddl(cmd, on_line)
         return code, total
 
