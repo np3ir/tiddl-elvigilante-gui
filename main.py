@@ -189,6 +189,12 @@ STRINGS: dict[str, dict[str, str]] = {
         "help_sec_item": "Track / video — {item.*}",
         "help_sec_album": "Album — {album.*}",
         "help_sec_playlist": "Playlist — {playlist.*}",
+        "help_playlist_tip": (
+            "Tip — numbering playlists: use {playlist.index} to number tracks in "
+            "playlist order (e.g. {playlist.index:03} → 001, 002…). Don't use "
+            "{item.number} here: that's the track's number within its ORIGINAL "
+            "album, so in a playlist it looks out of order (11, 1, 8, 7…)."
+        ),
         "help_sec_formats": "Format modifiers",
         "help_col_var": "Variable",
         "help_col_desc": "Description",
@@ -357,6 +363,12 @@ STRINGS: dict[str, dict[str, str]] = {
         "help_sec_item": "Canción / video — {item.*}",
         "help_sec_album": "Álbum — {album.*}",
         "help_sec_playlist": "Playlist — {playlist.*}",
+        "help_playlist_tip": (
+            "Consejo — numerar playlists: usa {playlist.index} para numerar las "
+            "canciones en el orden de la playlist (p. ej. {playlist.index:03} → "
+            "001, 002…). No uses {item.number} aquí: ese es el número dentro de su "
+            "álbum ORIGINAL, así que en una playlist se ve desordenado (11, 1, 8, 7…)."
+        ),
         "help_sec_formats": "Modificadores de formato",
         "help_col_var": "Variable",
         "help_col_desc": "Descripción",
@@ -1581,6 +1593,7 @@ class TiddlGui:
                 card(var_table(HELP_ALBUM)),
                 heading(self.t("help_sec_playlist")),
                 card(var_table(HELP_PLAYLIST)),
+                ft.Text(self.t("help_playlist_tip"), size=self.fs - 1, color=self.pal["gray"]),
                 heading(self.t("help_sec_formats")),
                 card(
                     ft.Column(
