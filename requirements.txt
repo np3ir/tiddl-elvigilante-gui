@@ -7,4 +7,4 @@ tomlkit>=0.13
 # misleading "Token expira en -N min — refrescando..." on every download when
 # the token had <30 min left. This commit also carries the config audit + the
 # GUI-parity CLI flags.
-tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@e533067
+tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@9bf7a76
