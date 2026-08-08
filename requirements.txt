@@ -1,8 +1,10 @@
 flet==0.86.1
 tomlkit>=0.13
-# tiddl empaquetado DENTRO del app (binario unico): flet build lee este
-# requirements e incluye el paquete, asi que la GUI corre tiddl in-process y
-# no necesita un tiddl.exe aparte ni que el usuario lo instale. Apunta al fork
-# corregido en main (incluye el fix del selector de calidad y, tras mergear
-# feat/cancel-hook, el hook de cancelacion cooperativa para el modo in-process).
-tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@cc1f4de
+# tiddl is bundled INSIDE the app (single binary): flet build reads this
+# requirements file and includes the package, so the GUI runs tiddl in-process
+# with no separate tiddl.exe. Pinned to a core commit that includes the
+# device-token auth-refresh fix (fae6eca) — without it the GUI printed the
+# misleading "Token expira en -N min — refrescando..." on every download when
+# the token had <30 min left. This commit also carries the config audit + the
+# GUI-parity CLI flags.
+tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@e533067
