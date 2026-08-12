@@ -2,10 +2,11 @@ flet==0.86.1
 tomlkit>=0.13
 # tiddl is bundled INSIDE the app (single binary): flet build reads this
 # requirements file and includes the package, so the GUI runs tiddl in-process
-# with no separate tiddl.exe. Pinned to a core commit that includes the
-# Windows "[Errno 22] Invalid argument" download fix (adc2c70): the download loop
-# runs on a SelectorEventLoop to dodge the aiohttp Proactor socket bug, with the
-# Playwright auto-refresh isolated back onto a Proactor loop. The GUI inherits it
-# automatically by running tiddl in-process. This commit also carries the
-# device-token auth-refresh fix, the config audit and the GUI-parity CLI flags.
-tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@adc2c70
+# with no separate tiddl.exe. Pinned to a core commit (802140d) whose download
+# path forces aiohttp's ThreadedResolver on Windows: the mid-download
+# "[Errno 22] Invalid argument" was a c-ares DNS failure (bypasses the Windows
+# DNS Client's cache/failover — fragile on flaky/multi-WAN links), not a
+# filename issue. The GUI inherits the fix by running tiddl in-process. This
+# commit also carries the device-token auth-refresh fix, the config audit and
+# the GUI-parity CLI flags.
+tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@802140d
