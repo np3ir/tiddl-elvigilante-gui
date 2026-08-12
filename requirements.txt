@@ -2,11 +2,12 @@ flet==0.86.1
 tomlkit>=0.13
 # tiddl is bundled INSIDE the app (single binary): flet build reads this
 # requirements file and includes the package, so the GUI runs tiddl in-process
-# with no separate tiddl.exe. Pinned to a core commit (802140d) whose download
-# path forces aiohttp's ThreadedResolver on Windows: the mid-download
-# "[Errno 22] Invalid argument" was a c-ares DNS failure (bypasses the Windows
-# DNS Client's cache/failover — fragile on flaky/multi-WAN links), not a
-# filename issue. The GUI inherits the fix by running tiddl in-process. This
-# commit also carries the device-token auth-refresh fix, the config audit and
-# the GUI-parity CLI flags.
-tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@802140d
+# with no separate tiddl.exe. Pinned to a core commit (9103b14) that hardens
+# downloads against the mid-download "[Errno 22] Invalid argument": (a) forces
+# aiohttp's ThreadedResolver on Windows (the error's DNS-failure trigger — c-ares
+# bypasses the Windows DNS Client cache/failover), and (b) stages each download
+# on local disk then moves it to the destination, so a busy NAS (SMB writes
+# failing EINVAL under IO saturation) no longer breaks it. The GUI inherits both
+# by running tiddl in-process. Also carries the device-token auth-refresh fix,
+# the config audit and the GUI-parity CLI flags.
+tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@9103b14
