@@ -3,8 +3,9 @@ tomlkit>=0.13
 # tiddl is bundled INSIDE the app (single binary): flet build reads this
 # requirements file and includes the package, so the GUI runs tiddl in-process
 # with no separate tiddl.exe. Pinned to a core commit that includes the
-# device-token auth-refresh fix (fae6eca) — without it the GUI printed the
-# misleading "Token expira en -N min — refrescando..." on every download when
-# the token had <30 min left. This commit also carries the config audit + the
-# GUI-parity CLI flags.
-tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@9bf7a76
+# Windows "[Errno 22] Invalid argument" download fix (adc2c70): the download loop
+# runs on a SelectorEventLoop to dodge the aiohttp Proactor socket bug, with the
+# Playwright auto-refresh isolated back onto a Proactor loop. The GUI inherits it
+# automatically by running tiddl in-process. This commit also carries the
+# device-token auth-refresh fix, the config audit and the GUI-parity CLI flags.
+tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@adc2c70
