@@ -10,4 +10,4 @@ tomlkit>=0.13
 # failing EINVAL under IO saturation) no longer breaks it. The GUI inherits both
 # by running tiddl in-process. Also carries the device-token auth-refresh fix,
 # the config audit and the GUI-parity CLI flags.
-tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@9103b14
+tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@9e9ff2c
