@@ -81,3 +81,21 @@ After the engine is validated:
 - Engine commit: `862dec07455aa2716089f4d0ba587f5eecb91d47`.
 - GUI `requirements.txt` now pins that exact commit. A remote/clean build must
   wait until the engine branch or commit is pushed to GitHub.
+
+### Windows build verification
+
+- Engine and GUI branches were pushed and their remote hashes matched locally.
+- Hardened `build_windows.ps1`: validates the exact `C:\tiddl-gui` staging
+  target before deleting its `build` child and no longer overwrites HOME or
+  USERPROFILE.
+- Flet produced `C:\tiddl-gui\build\windows\tiddl-gui.exe` successfully.
+- File/Product version: 1.0.16.
+- SHA-256: `C8C1429457062ADB6BF614CC23415FA5270C8E58BEC4BF29AE150C574097FE9B`.
+- Packaged `direct_url.json` confirms engine commit
+  `862dec07455aa2716089f4d0ba587f5eecb91d47`; compiled resolver, stream-policy
+  and download-policy modules are present.
+- Offline smoke launch succeeded. Visual inspection at the default 900 px width
+  confirmed Quality, Audio edition, Quality policy, Verify versions, Download
+  and Cancel are fully visible after the wrapping-row fix.
+- The standalone Inno Setup installer remains pending because `ISCC.exe` is not
+  installed.

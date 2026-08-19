@@ -33,5 +33,7 @@
 ## Validation
 
 - Complete offline engine suite: 326 passed, 3 skipped, 0 failed.
+- Windows application build and offline smoke launch verified at version 1.0.16
+  with engine commit `862dec07`.
 - No TIDAL account, playback or media request is required for the offline test
   suite.

@@ -5,5 +5,5 @@ tomlkit>=0.13
 # with no separate tiddl.exe. Pinned to the reviewed engine commit containing
 # stereo-edition resolution, flexible/strict quality policy, playback-manifest
 # validation, run-wide 401 handling, and the existing NAS/download hardening.
-# This commit must be pushed before a clean remote release build is attempted.
+# The pinned commit is published on the engine feature branch.
 tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@862dec07455aa2716089f4d0ba587f5eecb91d47
