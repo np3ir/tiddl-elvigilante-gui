@@ -70,8 +70,9 @@ After the engine is validated:
   default 900 px width. Preferences and actions are now separate wrapping rows.
 - Added `CHANGELOG_1.0.16.md`.
 - Flet 0.86.1, Flutter 3.44.4 and Python build 1.5.0 are available locally.
-- Inno Setup (`ISCC.exe`) is not installed, so the final `.exe` installer cannot
-  be produced offline on this machine yet.
+- Initial probing missed the per-user Inno Setup installation; later `winget
+  list` and the exact LocalAppData path confirmed Inno Setup 6.7.3 was already
+  installed.
 - At audit time `requirements.txt` pinned an older remote engine commit; it was
   subsequently updated to the local resolver commit recorded below.
 
@@ -97,5 +98,11 @@ After the engine is validated:
 - Offline smoke launch succeeded. Visual inspection at the default 900 px width
   confirmed Quality, Audio edition, Quality policy, Verify versions, Download
   and Cancel are fully visible after the wrapping-row fix.
-- The standalone Inno Setup installer remains pending because `ISCC.exe` is not
-  installed.
+- Inno Setup 6.7.3 successfully produced
+  `C:\tiddl-release\installer\tiddl-ElVigilante-Setup-1.0.16.exe`.
+- Installer size: 78.25 MiB. Product version: 1.0.16.
+- Installer SHA-256:
+  `97D6EFD9E4D5DADD6A5E814FEECD1727923E31C0AD54C4DB64A1C8228B771691`.
+- Authenticode status is `NotSigned`; code signing remains a release decision.
+- The installer was compiled and inspected but intentionally not installed over
+  the user's existing 1.0.14 installation during this automated validation.
