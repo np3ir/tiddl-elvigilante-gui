@@ -15,7 +15,7 @@
 #   porque requirements.txt lo declara como dependencia git (binario unico).
 
 param(
-    [string]$Version = "1.0.0",
+    [string]$Version = "",
     [switch]$SkipGui
 )
 
@@ -25,6 +25,12 @@ $src  = "C:\!z\home\tiddl-flet"
 $work = "C:\tiddl-gui"
 $rel  = "C:\tiddl-release"
 $iscc = "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
+
+if (-not $Version) {
+    $versionMatch = Select-String -Path "$src\main.py" -Pattern '^APP_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)"$'
+    if (-not $versionMatch) { throw "No se pudo leer APP_VERSION desde main.py" }
+    $Version = $versionMatch.Matches[0].Groups[1].Value
+}
 
 # ---------- 1. GUI (flet build) ----------
 if (-not $SkipGui) {

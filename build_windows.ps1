@@ -9,6 +9,9 @@
 
 $src = "G:\My Drive\Backups\zhome-2026-07-25\tiddl-gui"
 $dst = "C:\tiddl-gui"
+$versionMatch = Select-String -Path "$src\main.py" -Pattern '^APP_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)"$'
+if (-not $versionMatch) { throw "No se pudo leer APP_VERSION desde main.py" }
+$appVersion = $versionMatch.Matches[0].Groups[1].Value
 
 New-Item -ItemType Directory -Force $dst | Out-Null
 Copy-Item "$src\main.py", "$src\requirements.txt" $dst -Force
@@ -26,4 +29,4 @@ $env:PUB_CACHE = "C:\fb\pubcache"
 $env:PATH = "C:\fb\flutter\3.44.4\bin;$env:PATH"
 
 Set-Location $dst
-"y" | flet build windows --project tiddl-gui --product "tiddl by ElVigilante" --company ElVigilante --build-version 1.0.0
+"y" | flet build windows --project tiddl-gui --product "tiddl by ElVigilante" --company ElVigilante --build-version $appVersion
