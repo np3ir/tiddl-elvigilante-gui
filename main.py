@@ -1269,6 +1269,8 @@ class TiddlGui:
                     wrap=True,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 ),
+                ft.Text(self.t("audio_mode_help"), size=11, color=ft.Colors.OUTLINE),
+                ft.Text(self.t("quality_policy_help"), size=11, color=ft.Colors.OUTLINE),
                 ft.Row(
                     [
                         self.update_btn,
@@ -1597,8 +1599,6 @@ class TiddlGui:
                             wrap=True, vertical_alignment=ft.CrossAxisAlignment.CENTER,
                         ),
                         ft.Text(self.t("hires_client_hint"), size=11, color=ft.Colors.OUTLINE),
-                        ft.Text(self.t("audio_mode_help"), size=11, color=ft.Colors.OUTLINE),
-                        ft.Text(self.t("quality_policy_help"), size=11, color=ft.Colors.OUTLINE),
                         ft.Row([self.f_rewrite, self.f_update_mtime], wrap=True),
                     ],
                     expanded=False,
