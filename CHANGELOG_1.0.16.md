@@ -10,7 +10,7 @@
 - Strict mode requires the exact requested playback quality.
 - Stereo mode resolves alternate TIDAL editions and rejects Atmos manifests
   before media transfer.
-- Added `Verify versions`, a catalog-only dry run for direct album links.
+- Added `Check available versions`, a catalog-only dry run for direct album links.
 
 ## Reliability
 

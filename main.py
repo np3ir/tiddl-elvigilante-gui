@@ -216,12 +216,20 @@ STRINGS: dict[str, dict[str, str]] = {
         "links_label": "TIDAL links",
         "links_hint": "Paste one or more links (track / album / playlist / artist / mix), one per line",
         "quality": "Quality",
+        "quality_low": "Low",
+        "quality_normal": "Normal",
+        "quality_high": "High (lossless)",
+        "quality_max": "MAX (Hi-Res lossless)",
         "audio_mode": "Audio edition",
+        "audio_mode_auto": "Automatic (original link)",
+        "audio_mode_stereo": "Stereo only",
         "audio_mode_help": (
             "auto = use the supplied TIDAL link; stereo = find a matching stereo album "
             "and verify its playback metadata before transfer (direct album links)."
         ),
         "quality_policy": "Quality policy",
+        "quality_policy_flexible": "Flexible (allow lower tiers)",
+        "quality_policy_strict": "Strict (exact tier only)",
         "quality_policy_help": (
             "flexible = treat the selected quality as a ceiling and use the highest available "
             "tier below it; strict = transfer only the exact selected quality. Combine with "
@@ -230,7 +238,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "core_stopped": "Download engine stopped the run for safety (authentication or stream policy)",
         "redownload": "Re-download existing files",
         "btn_download": "Download",
-        "btn_verify": "Verify versions",
+        "btn_verify": "Check available versions",
         "verify_album_only": "Version verification currently accepts direct album links only",
         "verify_stereo_required": "Select the stereo audio edition to verify alternate versions",
         "btn_cancel": "Cancel",
@@ -405,29 +413,37 @@ STRINGS: dict[str, dict[str, str]] = {
             "artistas múltiples se unen con el separador de tu config de tiddl "
             "(artist_separator)."
         ),
-        "links_label": "Links de TIDAL",
-        "links_hint": "Pega uno o más links (track / álbum / playlist / artista / mix), uno por línea",
+        "links_label": "Enlaces de TIDAL",
+        "links_hint": "Pega uno o más enlaces (canción / álbum / playlist / artista / mix), uno por línea",
         "quality": "Calidad",
+        "quality_low": "Low (baja)",
+        "quality_normal": "Normal",
+        "quality_high": "High (sin pérdida)",
+        "quality_max": "MAX (alta resolución sin pérdida)",
         "redownload": "Re-descargar archivos existentes",
         "audio_mode": "Edición de audio",
+        "audio_mode_auto": "Automática (enlace original)",
+        "audio_mode_stereo": "Solo estéreo",
         "audio_mode_help": (
-            "auto = usa el enlace suministrado; stereo = busca un álbum estéreo equivalente "
-            "y verifica su manifiesto antes de transferir (links directos de álbum)."
+            "Automática usa el enlace suministrado. Solo estéreo busca una edición equivalente "
+            "y comprueba el audio antes de transferirlo (solo enlaces directos de álbum)."
         ),
         "quality_policy": "Política de calidad",
+        "quality_policy_flexible": "Flexible (permite calidades inferiores)",
+        "quality_policy_strict": "Estricta (solo la calidad exacta)",
         "quality_policy_help": (
-            "flexible = usa la calidad seleccionada como techo y elige el nivel más alto disponible "
-            "por debajo; strict = transfiere únicamente la calidad exacta. Combínalo con stereo "
-            "para garantizar que no haya Atmos."
+            "Flexible usa la calidad seleccionada como máximo y elige la mejor disponible sin "
+            "superarla. Estricta exige exactamente la calidad seleccionada. Solo estéreo impide "
+            "que se transfiera audio Atmos."
         ),
-        "core_stopped": "El motor detuvo la ejecución por seguridad (autenticación o política de stream)",
+        "core_stopped": "El motor detuvo la ejecución por seguridad (autenticación o política de audio)",
         "btn_download": "Descargar",
-        "btn_verify": "Verificar versiones",
-        "verify_album_only": "La verificación de versiones acepta por ahora links directos de álbum",
-        "verify_stereo_required": "Selecciona la edición de audio stereo para verificar alternativas",
+        "btn_verify": "Comprobar versiones disponibles",
+        "verify_album_only": "La comprobación solo acepta enlaces directos de álbum por ahora",
+        "verify_stereo_required": "Selecciona Solo estéreo para buscar una edición alternativa",
         "btn_cancel": "Cancelar",
-        "copy_log": "Copiar log",
-        "log_copied": "Log copiado al portapapeles",
+        "copy_log": "Copiar registro",
+        "log_copied": "Registro copiado al portapapeles",
         "log_copy_fail": "No se pudo copiar: {err}",
         "update_available": "Actualización disponible",
         "update_tooltip": "La versión {ver} está disponible (tienes {cur}) - clic para descargar",
@@ -446,7 +462,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "sec_naming": "Nombres de archivo",
         "tpl_vars": "Variables: " + TEMPLATE_VARS,
         "tpl_default": "Template por defecto",
-        "tpl_track": "Template de track",
+        "tpl_track": "Plantilla de canción",
         "tpl_album": "Template de álbum",
         "tpl_playlist": "Template de playlist",
         "tpl_video": "Template de video",
@@ -463,7 +479,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "cover_allowed_lbl": "Guardar para:",
         "cover_help": "Para álbumes, se guarda un cover.jpg junto a las canciones descargadas.",
         "cover_target_required": "Selecciona al menos un destino para cover.jpg",
-        "target_track": "Tracks",
+        "target_track": "Canciones",
         "target_album": "Álbumes",
         "target_playlist": "Playlists",
         "target_mix": "Mixes",
@@ -474,8 +490,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "hires_client_hint": "auto = HiRes solo en calidad máx (evita 429); always/never lo fuerzan",
         "rpm": "Peticiones / min",
         "concurrency": "Álbumes en paralelo (artista)",
-        "max_tracks": "Máx tracks / sesión (0 = ∞)",
-        "rewrite_cb": "Reescribir metadata en archivos existentes",
+        "max_tracks": "Máx. canciones / sesión (0 = ∞)",
+        "rewrite_cb": "Reescribir metadatos en archivos existentes",
         "mtime_cb": "Fecha del archivo = fecha de lanzamiento",
         # --- new: m3u ---
         "sec_m3u": "Listas (.m3u)",
@@ -547,7 +563,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "logout_ok": "Sesión cerrada - inicia sesión de nuevo para descargar",
         "lock_busy_title": "Otra ventana está descargando",
         "lock_busy_msg": (
-            "Para proteger tu cuenta de TIDAL del rate limit, solo una ventana "
+            "Para proteger tu cuenta de TIDAL de los límites de solicitudes, solo una ventana "
             "puede descargar a la vez. Espera a que termine la otra descarga, "
             "o cancélala en esa ventana."
         ),
@@ -1157,27 +1173,36 @@ class TiddlGui:
         quality = self.cfg_dl("track_quality", "high")
         self.quality_dd = ft.Dropdown(
             label=self.t("quality"),
-            width=160,
+            width=230,
             value=quality if quality in QUALITIES else "high",
-            options=[ft.DropdownOption(q) for q in QUALITIES],
+            options=[
+                ft.DropdownOption(key=q, text=self.t(f"quality_{q}"))
+                for q in QUALITIES
+            ],
         )
 
         _gui_cfg = load_gui_settings()
         _audio_mode = str(_gui_cfg.get("audio_mode", "auto")).casefold()
         self.f_audio_mode = ft.Dropdown(
             label=self.t("audio_mode"),
-            width=190,
+            width=240,
             value=_audio_mode if _audio_mode in AUDIO_MODES else "auto",
-            options=[ft.DropdownOption(mode) for mode in AUDIO_MODES],
+            options=[
+                ft.DropdownOption(key=mode, text=self.t(f"audio_mode_{mode}"))
+                for mode in AUDIO_MODES
+            ],
         )
         _quality_policy = str(_gui_cfg.get("quality_policy", "flexible")).casefold()
         self.f_quality_policy = ft.Dropdown(
             label=self.t("quality_policy"),
-            width=190,
+            width=290,
             value=(
                 _quality_policy if _quality_policy in QUALITY_POLICIES else "flexible"
             ),
-            options=[ft.DropdownOption(policy) for policy in QUALITY_POLICIES],
+            options=[
+                ft.DropdownOption(key=policy, text=self.t(f"quality_policy_{policy}"))
+                for policy in QUALITY_POLICIES
+            ],
         )
 
         self.noskip_cb = ft.Checkbox(label=self.t("redownload"), value=False)
