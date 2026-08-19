@@ -3,7 +3,7 @@
 **English** · [Español](README.es.md)
 
 > [!WARNING]
-> This app is for personal, educational, and archival purposes only. It is not affiliated with Tidal. Users must ensure their use complies with Tidal's terms of service and all applicable local copyright laws. Downloaded content is for personal use and may not be shared or redistributed. The developer assumes no responsibility for misuse of this app.
+> This app is for personal, educational, and archival purposes only. It is not affiliated with TIDAL. Users must ensure their use complies with TIDAL's terms of service and all applicable local copyright laws. Downloaded content is for personal use and may not be shared or redistributed. The developer assumes no responsibility for misuse of this app.
 
 Desktop GUI for [tiddl-elvigilante](https://github.com/np3ir/tiddl-elvigilante), the production-ready TIDAL music downloader. Paste a link, pick the quality, and go — with all the power of the CLI underneath.
 
@@ -14,6 +14,8 @@ Desktop GUI for [tiddl-elvigilante](https://github.com/np3ir/tiddl-elvigilante),
 ## Features
 
 - **Paste any TIDAL link** — track, album, playlist, artist or mix; hundreds at a time (long lists are split into runs automatically)
+- **Independent edition and quality controls** — keep the original link or find a stereo-only edition; select Low, Normal, High or MAX with a flexible or strict policy
+- **Catalog check without downloading** — for direct album links, find a compatible stereo edition and review track-list differences before transferring audio
 - **Smart playlist handling** — download as playlist, or expand into **full albums**, **artist discographies** or **standalone tracks** (each with its proper folder layout and templates)
 - **Artist safety dialog** — confirms before massive discography downloads and lets you pick singles/videos per run
 - **Live progress** — real progress bar with counter, currently-downloading track with percentage, timestamped log
@@ -39,6 +41,14 @@ Smart playlist dialog — download as a playlist, or expand into albums, artist 
 3. Run the app → **Log in to TIDAL** → set your folders in Settings → download
 
 Requires an active TIDAL subscription (HiFi for lossless quality).
+
+### Audio edition and quality
+
+- **Automatic** keeps the album or track from the supplied link, including Atmos when that is the linked edition.
+- **Stereo only** searches TIDAL for a matching edition and rejects an Atmos manifest before audio transfer. Automatic edition matching currently supports direct album links.
+- **Flexible** treats the selected quality as a ceiling and uses the best available tier at or below it. For example, MAX may fall back to High, Normal or Low.
+- **Strict** requires the exact selected tier; if TIDAL does not deliver it, the download stops instead of degrading.
+- **Check available versions** queries the catalog and reports the result without downloading audio files.
 
 ## Install (Linux)
 

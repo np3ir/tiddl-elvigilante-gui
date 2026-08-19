@@ -79,12 +79,17 @@ except ModuleNotFoundError:  # Python < 3.11
     tomllib = None
 
 # Bump this every release; the built installer version should match.
-APP_VERSION = "1.0.14"
+APP_VERSION = "1.0.16"
 GUI_REPO = "np3ir/tiddl-elvigilante-gui"
 RELEASES_URL = f"https://github.com/{GUI_REPO}/releases/latest"
 API_LATEST = f"https://api.github.com/repos/{GUI_REPO}/releases/latest"
+OFFLINE_MODE = os.environ.get("TIDDL_GUI_OFFLINE", "").strip().casefold() in {
+    "1", "true", "yes", "on"
+}
 
 QUALITIES = ["low", "normal", "high", "max"]
+AUDIO_MODES = ["auto", "stereo"]
+QUALITY_POLICIES = ["flexible", "strict"]
 SINGLES_FILTERS = ["none", "only", "include"]
 VIDEOS_FILTERS = ["none", "allow", "only"]
 VIDEO_QUALITIES = ["audio", "360", "480", "720", "1080", "fhd"]
@@ -211,8 +216,31 @@ STRINGS: dict[str, dict[str, str]] = {
         "links_label": "TIDAL links",
         "links_hint": "Paste one or more links (track / album / playlist / artist / mix), one per line",
         "quality": "Quality",
+        "quality_low": "Low",
+        "quality_normal": "Normal",
+        "quality_high": "High (lossless)",
+        "quality_max": "MAX (Hi-Res lossless)",
+        "audio_mode": "Audio edition",
+        "audio_mode_auto": "Automatic (original link)",
+        "audio_mode_stereo": "Stereo only",
+        "audio_mode_help": (
+            "auto = use the supplied TIDAL link; stereo = find a matching stereo album "
+            "and verify its playback metadata before transfer (direct album links)."
+        ),
+        "quality_policy": "Quality policy",
+        "quality_policy_flexible": "Flexible (allow lower tiers)",
+        "quality_policy_strict": "Strict (exact tier only)",
+        "quality_policy_help": (
+            "flexible = treat the selected quality as a ceiling and use the highest available "
+            "tier below it; strict = transfer only the exact selected quality. Combine with "
+            "stereo to guarantee no Atmos."
+        ),
+        "core_stopped": "Download engine stopped the run for safety (authentication or stream policy)",
         "redownload": "Re-download existing files",
         "btn_download": "Download",
+        "btn_verify": "Check available versions",
+        "verify_album_only": "Version verification currently accepts direct album links only",
+        "verify_stereo_required": "Select the stereo audio edition to verify alternate versions",
         "btn_cancel": "Cancel",
         "copy_log": "Copy log",
         "log_copied": "Log copied to clipboard",
@@ -249,6 +277,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "cover_save_cb": "Save a cover.jpg next to the audio",
         "cover_size": "Size (px, max 1280)",
         "cover_allowed_lbl": "Save for:",
+        "cover_help": "For albums, one cover.jpg is saved beside the downloaded tracks.",
+        "cover_target_required": "Choose at least one destination for cover.jpg",
         "target_track": "Tracks",
         "target_album": "Albums",
         "target_playlist": "Playlists",
@@ -290,8 +320,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "reloaded": "Reloaded from config.toml",
         "saved": "Saved to {path} (backup created)",
         "save_failed": "Save failed: {err}",
-        "invalid_number": "Invalid number in Settings (threads/delays)",
-        "invalid_number_short": "Invalid number in threads/delays",
+        "invalid_number": "Invalid numeric value in Settings",
+        "invalid_number_short": "Check the numeric fields in Settings",
         "footer": (
             "Settings apply to every download started from this window. "
             "\"Save as defaults\" also writes them to tiddl's config.toml (backup created), "
@@ -383,14 +413,37 @@ STRINGS: dict[str, dict[str, str]] = {
             "artistas múltiples se unen con el separador de tu config de tiddl "
             "(artist_separator)."
         ),
-        "links_label": "Links de TIDAL",
-        "links_hint": "Pega uno o más links (track / álbum / playlist / artista / mix), uno por línea",
+        "links_label": "Enlaces de TIDAL",
+        "links_hint": "Pega uno o más enlaces (canción / álbum / playlist / artista / mix), uno por línea",
         "quality": "Calidad",
+        "quality_low": "Low (baja)",
+        "quality_normal": "Normal",
+        "quality_high": "High (sin pérdida)",
+        "quality_max": "MAX (alta resolución sin pérdida)",
         "redownload": "Re-descargar archivos existentes",
+        "audio_mode": "Edición de audio",
+        "audio_mode_auto": "Automática (enlace original)",
+        "audio_mode_stereo": "Solo estéreo",
+        "audio_mode_help": (
+            "Automática usa el enlace suministrado. Solo estéreo busca una edición equivalente "
+            "y comprueba el audio antes de transferirlo (solo enlaces directos de álbum)."
+        ),
+        "quality_policy": "Política de calidad",
+        "quality_policy_flexible": "Flexible (permite calidades inferiores)",
+        "quality_policy_strict": "Estricta (solo la calidad exacta)",
+        "quality_policy_help": (
+            "Flexible usa la calidad seleccionada como máximo y elige la mejor disponible sin "
+            "superarla. Estricta exige exactamente la calidad seleccionada. Solo estéreo impide "
+            "que se transfiera audio Atmos."
+        ),
+        "core_stopped": "El motor detuvo la ejecución por seguridad (autenticación o política de audio)",
         "btn_download": "Descargar",
+        "btn_verify": "Comprobar versiones disponibles",
+        "verify_album_only": "La comprobación solo acepta enlaces directos de álbum por ahora",
+        "verify_stereo_required": "Selecciona Solo estéreo para buscar una edición alternativa",
         "btn_cancel": "Cancelar",
-        "copy_log": "Copiar log",
-        "log_copied": "Log copiado al portapapeles",
+        "copy_log": "Copiar registro",
+        "log_copied": "Registro copiado al portapapeles",
         "log_copy_fail": "No se pudo copiar: {err}",
         "update_available": "Actualización disponible",
         "update_tooltip": "La versión {ver} está disponible (tienes {cur}) - clic para descargar",
@@ -409,7 +462,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "sec_naming": "Nombres de archivo",
         "tpl_vars": "Variables: " + TEMPLATE_VARS,
         "tpl_default": "Template por defecto",
-        "tpl_track": "Template de track",
+        "tpl_track": "Plantilla de canción",
         "tpl_album": "Template de álbum",
         "tpl_playlist": "Template de playlist",
         "tpl_video": "Template de video",
@@ -424,7 +477,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "cover_save_cb": "Guardar un cover.jpg junto al audio",
         "cover_size": "Tamaño (px, máx 1280)",
         "cover_allowed_lbl": "Guardar para:",
-        "target_track": "Tracks",
+        "cover_help": "Para álbumes, se guarda un cover.jpg junto a las canciones descargadas.",
+        "cover_target_required": "Selecciona al menos un destino para cover.jpg",
+        "target_track": "Canciones",
         "target_album": "Álbumes",
         "target_playlist": "Playlists",
         "target_mix": "Mixes",
@@ -435,8 +490,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "hires_client_hint": "auto = HiRes solo en calidad máx (evita 429); always/never lo fuerzan",
         "rpm": "Peticiones / min",
         "concurrency": "Álbumes en paralelo (artista)",
-        "max_tracks": "Máx tracks / sesión (0 = ∞)",
-        "rewrite_cb": "Reescribir metadata en archivos existentes",
+        "max_tracks": "Máx. canciones / sesión (0 = ∞)",
+        "rewrite_cb": "Reescribir metadatos en archivos existentes",
         "mtime_cb": "Fecha del archivo = fecha de lanzamiento",
         # --- new: m3u ---
         "sec_m3u": "Listas (.m3u)",
@@ -465,8 +520,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "reloaded": "Recargado desde config.toml",
         "saved": "Guardado en {path} (backup creado)",
         "save_failed": "Error al guardar: {err}",
-        "invalid_number": "Número inválido en Ajustes (hilos/delays)",
-        "invalid_number_short": "Número inválido en hilos/delays",
+        "invalid_number": "Hay un valor numérico inválido en Ajustes",
+        "invalid_number_short": "Revisa los campos numéricos de Ajustes",
         "footer": (
             "Los ajustes aplican a cada descarga iniciada desde esta ventana. "
             "\"Guardar como default\" también los escribe en el config.toml de tiddl "
@@ -508,7 +563,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "logout_ok": "Sesión cerrada - inicia sesión de nuevo para descargar",
         "lock_busy_title": "Otra ventana está descargando",
         "lock_busy_msg": (
-            "Para proteger tu cuenta de TIDAL del rate limit, solo una ventana "
+            "Para proteger tu cuenta de TIDAL de los límites de solicitudes, solo una ventana "
             "puede descargar a la vez. Espera a que termine la otra descarga, "
             "o cancélala en esa ventana."
         ),
@@ -632,7 +687,7 @@ STASH_FIELDS = [
     "f_cover_track", "f_cover_album", "f_cover_playlist",
     # advanced download
     "f_video_quality", "f_hires_client", "f_rpm", "f_concurrency",
-    "f_max_tracks", "f_rewrite", "f_update_mtime",
+    "f_max_tracks", "f_rewrite", "f_update_mtime", "f_audio_mode", "f_quality_policy",
     # m3u
     "f_m3u_save", "f_m3u_album", "f_m3u_playlist", "f_m3u_mix",
 ]
@@ -956,9 +1011,10 @@ class TiddlGui:
             self.download_btn.disabled = True
         elif other_instance_downloading():
             self.set_status(self.t("lock_startup_warn"))
-        else:
+        elif not OFFLINE_MODE:
             self.page.run_thread(self.check_auth)
-        self.page.run_thread(self.check_updates)
+        if not OFFLINE_MODE:
+            self.page.run_thread(self.check_updates)
         p.update()
 
     def check_updates(self):
@@ -1117,9 +1173,36 @@ class TiddlGui:
         quality = self.cfg_dl("track_quality", "high")
         self.quality_dd = ft.Dropdown(
             label=self.t("quality"),
-            width=160,
+            width=230,
             value=quality if quality in QUALITIES else "high",
-            options=[ft.DropdownOption(q) for q in QUALITIES],
+            options=[
+                ft.DropdownOption(key=q, text=self.t(f"quality_{q}"))
+                for q in QUALITIES
+            ],
+        )
+
+        _gui_cfg = load_gui_settings()
+        _audio_mode = str(_gui_cfg.get("audio_mode", "auto")).casefold()
+        self.f_audio_mode = ft.Dropdown(
+            label=self.t("audio_mode"),
+            width=240,
+            value=_audio_mode if _audio_mode in AUDIO_MODES else "auto",
+            options=[
+                ft.DropdownOption(key=mode, text=self.t(f"audio_mode_{mode}"))
+                for mode in AUDIO_MODES
+            ],
+        )
+        _quality_policy = str(_gui_cfg.get("quality_policy", "flexible")).casefold()
+        self.f_quality_policy = ft.Dropdown(
+            label=self.t("quality_policy"),
+            width=290,
+            value=(
+                _quality_policy if _quality_policy in QUALITY_POLICIES else "flexible"
+            ),
+            options=[
+                ft.DropdownOption(key=policy, text=self.t(f"quality_policy_{policy}"))
+                for policy in QUALITY_POLICIES
+            ],
         )
 
         self.noskip_cb = ft.Checkbox(label=self.t("redownload"), value=False)
@@ -1128,6 +1211,11 @@ class TiddlGui:
             content=self.t("btn_download"),
             icon=ft.Icons.DOWNLOAD,
             on_click=self.on_download,
+        )
+        self.verify_btn = ft.OutlinedButton(
+            content=self.t("btn_verify"),
+            icon=ft.Icons.SEARCH,
+            on_click=self.on_verify_versions,
         )
         self.login_btn = ft.FilledButton(
             content=self.t("btn_login"),
@@ -1174,14 +1262,24 @@ class TiddlGui:
                 ft.Row(
                     [
                         self.quality_dd,
+                        self.f_audio_mode,
+                        self.f_quality_policy,
                         self.noskip_cb,
-                        ft.Container(expand=True),
+                    ],
+                    wrap=True,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                ),
+                ft.Row(
+                    [
                         self.update_btn,
                         self.logout_btn,
                         self.login_btn,
+                        self.verify_btn,
                         self.download_btn,
                         self.cancel_btn,
                     ],
+                    wrap=True,
+                    alignment=ft.MainAxisAlignment.END,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 ),
                 self.status_text,
@@ -1311,37 +1409,65 @@ class TiddlGui:
         _cov_allowed = self.cfg_cover("allowed", []) or []
         if not isinstance(_cov_allowed, list):
             _cov_allowed = []
+        _cover_save = bool(self.cfg_cover("save", False))
+        # Album is the useful default. Older configs commonly have an empty
+        # `allowed`, which made enabling cover saving appear to do nothing.
+        if not _cov_allowed:
+            _cov_allowed = ["album"]
         self.f_cover_save = ft.Checkbox(
-            label=self.t("cover_save_cb"), value=bool(self.cfg_cover("save", False))
+            label=self.t("cover_save_cb"), value=_cover_save
         )
         self.f_cover_size = ft.TextField(
-            label=self.t("cover_size"), value=str(self.cfg_cover("size", 1280) or 1280), width=170
+            label=self.t("cover_size"), value=str(self.cfg_cover("size", 1280) or 1280),
+            width=220, disabled=not _cover_save,
         )
-        self.f_cover_track = ft.Checkbox(label=self.t("target_track"), value="track" in _cov_allowed)
-        self.f_cover_album = ft.Checkbox(label=self.t("target_album"), value="album" in _cov_allowed)
-        self.f_cover_playlist = ft.Checkbox(label=self.t("target_playlist"), value="playlist" in _cov_allowed)
+        self.f_cover_track = ft.Checkbox(
+            label=self.t("target_track"), value="track" in _cov_allowed, disabled=not _cover_save
+        )
+        self.f_cover_album = ft.Checkbox(
+            label=self.t("target_album"), value="album" in _cov_allowed, disabled=not _cover_save
+        )
+        self.f_cover_playlist = ft.Checkbox(
+            label=self.t("target_playlist"), value="playlist" in _cov_allowed, disabled=not _cover_save
+        )
+
+        def cover_save_changed(e):
+            enabled = bool(self.f_cover_save.value)
+            if enabled and not any(
+                cb.value for cb in (self.f_cover_track, self.f_cover_album, self.f_cover_playlist)
+            ):
+                self.f_cover_album.value = True
+            for control in (
+                self.f_cover_size, self.f_cover_track, self.f_cover_album, self.f_cover_playlist
+            ):
+                control.disabled = not enabled
+            self.refresh(
+                self.f_cover_size, self.f_cover_track, self.f_cover_album, self.f_cover_playlist
+            )
+
+        self.f_cover_save.on_change = cover_save_changed
 
         # --- Advanced download ---
         _vq = self.cfg_dl("video_quality", "fhd")
         self.f_video_quality = ft.Dropdown(
-            label=self.t("video_quality"), width=150,
+            label=self.t("video_quality"), width=220,
             value=_vq if _vq in VIDEO_QUALITIES else "fhd",
             options=[ft.DropdownOption(v) for v in VIDEO_QUALITIES],
         )
         _hc = self.cfg_dl("hires_client", "auto")
         self.f_hires_client = ft.Dropdown(
-            label=self.t("hires_client"), width=150,
+            label=self.t("hires_client"), width=220,
             value=_hc if _hc in HIRES_CLIENTS else "auto",
             options=[ft.DropdownOption(v) for v in HIRES_CLIENTS],
         )
         self.f_rpm = ft.TextField(
-            label=self.t("rpm"), value=str(self.cfg_dl("requests_per_minute", 20)), width=140
+            label=self.t("rpm"), value=str(self.cfg_dl("requests_per_minute", 20)), width=220
         )
         self.f_concurrency = ft.TextField(
-            label=self.t("concurrency"), value=str(self.cfg_dl("artist_concurrency", 1)), width=170
+            label=self.t("concurrency"), value=str(self.cfg_dl("artist_concurrency", 1)), width=260
         )
         self.f_max_tracks = ft.TextField(
-            label=self.t("max_tracks"), value=str(self.cfg_dl("max_tracks_per_session", 0)), width=190
+            label=self.t("max_tracks"), value=str(self.cfg_dl("max_tracks_per_session", 0)), width=260
         )
         self.f_rewrite = ft.Checkbox(
             label=self.t("rewrite_cb"), value=bool(self.cfg_dl("rewrite_metadata", False))
@@ -1453,20 +1579,26 @@ class TiddlGui:
                     [
                         ft.Row([self.f_cover_save, self.f_cover_size], wrap=True,
                                vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                        ft.Text(self.t("cover_help"), size=11, color=ft.Colors.OUTLINE),
                         ft.Text(self.t("cover_allowed_lbl"), size=12, color=ft.Colors.OUTLINE),
                         ft.Row([self.f_cover_track, self.f_cover_album, self.f_cover_playlist], wrap=True),
                     ],
-                    expanded=False,
+                    expanded=True,
                 ),
                 section(
                     self.t("sec_advanced"),
                     [
                         ft.Row(
-                            [self.f_video_quality, self.f_hires_client, self.f_rpm,
-                             self.f_concurrency, self.f_max_tracks],
+                            [self.f_video_quality, self.f_hires_client, self.f_rpm],
+                            wrap=True, vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                        ),
+                        ft.Row(
+                            [self.f_concurrency, self.f_max_tracks],
                             wrap=True, vertical_alignment=ft.CrossAxisAlignment.CENTER,
                         ),
                         ft.Text(self.t("hires_client_hint"), size=11, color=ft.Colors.OUTLINE),
+                        ft.Text(self.t("audio_mode_help"), size=11, color=ft.Colors.OUTLINE),
+                        ft.Text(self.t("quality_policy_help"), size=11, color=ft.Colors.OUTLINE),
                         ft.Row([self.f_rewrite, self.f_update_mtime], wrap=True),
                     ],
                     expanded=False,
@@ -1667,13 +1799,19 @@ class TiddlGui:
 
     # ---------- settings helpers ----------
 
-    def numeric_settings(self) -> tuple[int, float, float] | None:
+    def numeric_settings(self) -> tuple[int, float, float, int, int, int, int] | None:
         try:
             threads = max(1, int((self.f_threads.value or "1").strip()))
             track_delay = float((self.f_track_delay.value or "0").strip())
             artist_delay = float((self.f_artist_delay.value or "0").strip())
-            return threads, track_delay, artist_delay
-        except ValueError:
+            rpm = max(0, int((self.f_rpm.value or "20").strip()))
+            concurrency = max(0, int((self.f_concurrency.value or "1").strip()))
+            max_tracks = max(0, int((self.f_max_tracks.value or "0").strip()))
+            cover_size = min(1280, max(1, int((self.f_cover_size.value or "1280").strip())))
+            if track_delay < 0 or artist_delay < 0:
+                return None
+            return threads, track_delay, artist_delay, rpm, concurrency, max_tracks, cover_size
+        except (ValueError, TypeError):
             return None
 
     def settings_flags(
@@ -1692,7 +1830,13 @@ class TiddlGui:
         if nums is None:
             self.set_status(self.t("invalid_number"), error=True)
             return None
-        threads, track_delay, artist_delay = nums
+        threads, track_delay, artist_delay, _rpm, concurrency, _max_tracks, _cover_size = nums
+
+        if self.f_cover_save.value and not any(
+            cb.value for cb in (self.f_cover_track, self.f_cover_album, self.f_cover_playlist)
+        ):
+            self.set_status(self.t("cover_target_required"), error=True)
+            return None
 
         flags: list[str] = ["-t", str(threads), "-td", str(track_delay), "-d", str(artist_delay)]
         singles_val = singles or self.f_singles.value
@@ -1716,10 +1860,7 @@ class TiddlGui:
         # only the CLI-standalone build does. CONFIG mutation is immune to that.
         if self.f_video_quality.value:
             flags += ["-vq", self.f_video_quality.value]
-        try:
-            flags += ["-c", str(max(0, int(float((self.f_concurrency.value or "1").strip()))))]
-        except (ValueError, TypeError):
-            pass
+        flags += ["-c", str(concurrency)]
         if self.f_rewrite.value:
             flags.append("-r")
 
@@ -1769,10 +1910,16 @@ class TiddlGui:
         _cov = self.cfg_cover("allowed", []) or []
         _cov = _cov if isinstance(_cov, list) else []
         self.f_cover_save.value = bool(self.cfg_cover("save", False))
+        if not _cov:
+            _cov = ["album"]
         self.f_cover_size.value = str(self.cfg_cover("size", 1280) or 1280)
         self.f_cover_track.value = "track" in _cov
         self.f_cover_album.value = "album" in _cov
         self.f_cover_playlist.value = "playlist" in _cov
+        for control in (
+            self.f_cover_size, self.f_cover_track, self.f_cover_album, self.f_cover_playlist
+        ):
+            control.disabled = not self.f_cover_save.value
         # advanced download
         _vq = self.cfg_dl("video_quality", "fhd")
         self.f_video_quality.value = _vq if _vq in VIDEO_QUALITIES else "fhd"
@@ -1783,6 +1930,12 @@ class TiddlGui:
         self.f_max_tracks.value = str(self.cfg_dl("max_tracks_per_session", 0))
         self.f_rewrite.value = bool(self.cfg_dl("rewrite_metadata", False))
         self.f_update_mtime.value = bool(self.cfg_dl("update_mtime", False))
+        _audio_mode = str(load_gui_settings().get("audio_mode", "auto")).casefold()
+        self.f_audio_mode.value = _audio_mode if _audio_mode in AUDIO_MODES else "auto"
+        _quality_policy = str(load_gui_settings().get("quality_policy", "flexible")).casefold()
+        self.f_quality_policy.value = (
+            _quality_policy if _quality_policy in QUALITY_POLICIES else "flexible"
+        )
         # m3u
         _m3u = self.cfg_m3u("allowed", []) or []
         _m3u = _m3u if isinstance(_m3u, list) else []
@@ -1799,24 +1952,17 @@ class TiddlGui:
             self.settings_status.value = self.t("invalid_number_short")
             self.refresh()
             return
-        threads, track_delay, artist_delay = nums
-
-        def _safe_int(val, default):
-            try:
-                return int(float(str(val).strip()))
-            except (ValueError, TypeError):
-                return default
-
-        rpm = max(0, _safe_int(self.f_rpm.value, 20))
-        concurrency = max(0, _safe_int(self.f_concurrency.value, 1))
-        max_tracks = max(0, _safe_int(self.f_max_tracks.value, 0))
-        cover_size = min(1280, max(1, _safe_int(self.f_cover_size.value, 1280)))
+        threads, track_delay, artist_delay, rpm, concurrency, max_tracks, cover_size = nums
         cover_allowed = [
             t for t, cb in (
                 ("track", self.f_cover_track), ("album", self.f_cover_album),
                 ("playlist", self.f_cover_playlist),
             ) if cb.value
         ]
+        if self.f_cover_save.value and not cover_allowed:
+            self.settings_status.value = self.t("cover_target_required")
+            self.refresh()
+            return
         m3u_allowed = [
             t for t, cb in (
                 ("album", self.f_m3u_album), ("playlist", self.f_m3u_playlist),
@@ -1910,6 +2056,8 @@ class TiddlGui:
             gui_cfg["language"] = self.lang
             gui_cfg["theme"] = self.theme_name
             gui_cfg["font_size"] = self.font_name
+            gui_cfg["audio_mode"] = self.f_audio_mode.value or "auto"
+            gui_cfg["quality_policy"] = self.f_quality_policy.value or "flexible"
             save_gui_settings(gui_cfg)
 
             self.cfg = load_tiddl_config()
@@ -1990,6 +2138,7 @@ class TiddlGui:
         if not running:
             release_download_lock()
         self.download_btn.disabled = running
+        self.verify_btn.disabled = running
         self.cancel_btn.disabled = not running
         self.progress_row.visible = running
         self.progress.value = None if running else 0
@@ -2043,6 +2192,23 @@ class TiddlGui:
             self.ask_playlist_mode(urls)
             return
         self.check_combo_or_start(urls, expand=None)
+
+    def on_verify_versions(self, e):
+        """Run the stereo resolver only; the engine exits before Downloader."""
+        if other_instance_downloading():
+            self.show_busy_dialog()
+            return
+        urls = [u.strip() for u in re.split(r"[\s,]+", self.urls_field.value or "") if u.strip()]
+        if not urls:
+            self.set_status(self.t("paste_link"), error=True)
+            return
+        if (self.f_audio_mode.value or "auto").casefold() != "stereo":
+            self.set_status(self.t("verify_stereo_required"), error=True)
+            return
+        if any("album/" not in u for u in urls):
+            self.set_status(self.t("verify_album_only"), error=True)
+            return
+        self.start_download(urls, dry_run=True)
 
     def show_busy_dialog(self):
         dlg = ft.AlertDialog(
@@ -2190,11 +2356,20 @@ class TiddlGui:
         expand: str | None = None,
         singles: str | None = None,
         videos: str | None = None,
+        dry_run: bool = False,
     ) -> list[str] | None:
         flags = self.settings_flags(base_override, singles=singles, videos=videos)
         if flags is None:
             return None
         cmd = ["download", "-q", self.quality_dd.value or "high", *flags]
+        audio_mode = (self.f_audio_mode.value or "auto").casefold()
+        if audio_mode == "stereo":
+            cmd += ["--audio-mode", "stereo", "--edition-match", "best"]
+        quality_policy = (self.f_quality_policy.value or "flexible").casefold()
+        if quality_policy == "strict":
+            cmd += ["--quality-policy", "strict"]
+        if dry_run:
+            cmd.append("--dry-run")
         if expand in ("albums", "artists", "tracks"):
             cmd.append(f"--{expand}")
         if self.noskip_cb.value:
@@ -2208,6 +2383,7 @@ class TiddlGui:
         expand: str | None = None,
         singles: str | None = None,
         videos: str | None = None,
+        dry_run: bool = False,
     ):
         playlist_path = (self.f_playlist_path.value or "").strip()
         playlist_urls = [u for u in urls if "playlist/" in u]
@@ -2222,7 +2398,13 @@ class TiddlGui:
 
         def add_runs(run_urls: list[str], **kwargs) -> bool:
             for chunk in chunked(run_urls):
-                cmd = self.build_cmd(chunk, singles=singles, videos=videos, **kwargs)
+                cmd = self.build_cmd(
+                    chunk,
+                    singles=singles,
+                    videos=videos,
+                    dry_run=dry_run,
+                    **kwargs,
+                )
                 if cmd is None:
                     return False
                 cmds.append(cmd)
@@ -2394,6 +2576,19 @@ class TiddlGui:
                 self.flush_log()
                 grand_total += total or 0
                 worst_code = worst_code or code
+                # A fatal 401 or stereo-stream policy violation raises the
+                # engine's cooperative stop signal. Unlike the Cancel button,
+                # this does not set self.cancelled; stop subsequent chunks and
+                # surface an error instead of incorrectly reporting success.
+                if (
+                    tiddl_cancel is not None
+                    and tiddl_cancel.is_cancelled()
+                    and not self.cancelled
+                ):
+                    self.log(self.t("core_stopped"))
+                    self.flush_log()
+                    worst_code = worst_code or 1
+                    break
         except Exception as ex:
             self.set_running(False)
             self.set_status(self.t("error", e=ex), error=True)

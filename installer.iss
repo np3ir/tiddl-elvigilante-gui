@@ -7,7 +7,7 @@
 
 #define MyAppName "tiddl by ElVigilante"
 #ifndef MyAppVersion
-#define MyAppVersion "1.0.0"
+  #define MyAppVersion "1.0.16"
 #endif
 #define MyAppPublisher "ElVigilante"
 #define MyAppURL "https://github.com/np3ir/tiddl-elvigilante"

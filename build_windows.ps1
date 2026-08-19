@@ -9,6 +9,14 @@
 
 $src = "G:\My Drive\Backups\zhome-2026-07-25\tiddl-gui"
 $dst = "C:\tiddl-gui"
+$expectedDst = [System.IO.Path]::GetFullPath("C:\tiddl-gui")
+$resolvedDst = [System.IO.Path]::GetFullPath($dst)
+if ($resolvedDst -ne $expectedDst) {
+    throw "Destino de build inesperado: $resolvedDst"
+}
+$versionMatch = Select-String -Path "$src\main.py" -Pattern '^APP_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)"$'
+if (-not $versionMatch) { throw "No se pudo leer APP_VERSION desde main.py" }
+$appVersion = $versionMatch.Matches[0].Groups[1].Value
 
 New-Item -ItemType Directory -Force $dst | Out-Null
 Copy-Item "$src\main.py", "$src\requirements.txt" $dst -Force
@@ -17,13 +25,11 @@ Copy-Item "$src\main.py", "$src\requirements.txt" $dst -Force
 # fijado en requirements.txt) desde cero.
 Remove-Item -Recurse -Force "$dst\build" -ErrorAction SilentlyContinue
 
-# Entorno de build: el usuario "DJ Elvigilante" lleva espacio y rompe los hooks
-# de Flutter, por eso HOME/USERPROFILE apuntan a C:\fb. Flutter y el pub-cache
-# (con el serious_python parcheado) viven bajo C:\fb.
-$env:HOME = "C:\fb"
-$env:USERPROFILE = "C:\fb"
+# Flutter y el pub-cache (con serious_python parcheado) viven bajo C:\fb.
+# No se sobrescriben HOME/USERPROFILE: el código fuente ya se copia a una ruta
+# sin espacios y las cachés que necesitan ruta corta tienen variables propias.
 $env:PUB_CACHE = "C:\fb\pubcache"
 $env:PATH = "C:\fb\flutter\3.44.4\bin;$env:PATH"
 
 Set-Location $dst
-"y" | flet build windows --project tiddl-gui --product "tiddl by ElVigilante" --company ElVigilante --build-version 1.0.0
+"y" | flet build windows --project tiddl-gui --product "tiddl by ElVigilante" --company ElVigilante --build-version $appVersion
