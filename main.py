@@ -1538,7 +1538,9 @@ class TiddlGui:
                             spacing=8,
                             horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
                         ),
-                        padding=ft.Padding.only(left=8, right=8, bottom=12),
+                        # top padding gives the TextField floating labels room; without
+                        # it the ExpansionTile clips the top of the first row's labels.
+                        padding=ft.Padding.only(left=8, top=10, right=8, bottom=12),
                     )
                 ],
             )
