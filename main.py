@@ -619,17 +619,21 @@ HELP_SHORTCUTS = [
     ("{albumartist}", {"en": "Album's main artist", "es": "Artista principal del álbum"}),
     ("{artist_initials}", {"en": "First letter of the artist, for A/B/C… folders (uses album artist)",
                            "es": "Primera letra del artista, para carpetas A/B/C… (usa el artista del álbum)"}),
-    ("{release_date}", {"en": "Album release date", "es": "Fecha de lanzamiento del álbum"}),
+    ("{release_date}", {"en": "Album release date — date format: {release_date:%Y} → 1997",
+                        "es": "Fecha de lanzamiento del álbum — formato de fecha: {release_date:%Y} → 1997"}),
     ("{quality}", {"en": "Download quality (LOW/HIGH/LOSSLESS/HI_RES…)", "es": "Calidad de la descarga (LOW/HIGH/LOSSLESS/HI_RES…)"}),
-    ("{now}", {"en": "Current date/time (accepts date formats)", "es": "Fecha/hora actual (acepta formatos de fecha)"}),
+    ("{now}", {"en": "Current date/time — date format: {now:%Y-%m-%d} → 1997-06-16",
+               "es": "Fecha/hora actual — formato de fecha: {now:%Y-%m-%d} → 1997-06-16"}),
 ]
 HELP_ITEM = [
     ("{item.title}", {"en": "Title", "es": "Título"}),
     ("{item.safe_title}", {"en": "Title, filesystem-safe", "es": "Título, apto para el sistema de archivos"}),
     ("{item.title_version}", {"en": "Title including version, e.g. 'Song (Remastered)'", "es": "Título con versión, ej. 'Song (Remastered)'"}),
     ("{item.version}", {"en": "Version only, e.g. 'Remastered 2011'", "es": "Solo la versión, ej. 'Remastered 2011'"}),
-    ("{item.number}", {"en": "Track number", "es": "Número de pista"}),
-    ("{item.volume}", {"en": "Disc / volume number", "es": "Número de disco / volumen"}),
+    ("{item.number}", {"en": "Track number — zero-pad: {item.number:02} → 06",
+                        "es": "Número de pista — rellena con ceros: {item.number:02} → 06"}),
+    ("{item.volume}", {"en": "Disc / volume number — zero-pad: {item.volume:02} → 01",
+                       "es": "Número de disco / volumen — rellena con ceros: {item.volume:02} → 01"}),
     ("{item.artist}", {"en": "Main artist", "es": "Artista principal"}),
     ("{item.artists}", {"en": "All artists joined", "es": "Todos los artistas unidos"}),
     ("{item.features}", {"en": "Featured artists", "es": "Artistas invitados (feat.)"}),
@@ -641,7 +645,8 @@ HELP_ITEM = [
     ("{item.quality}", {"en": "Track quality", "es": "Calidad de la pista"}),
     ("{item.explicit}", {"en": "Explicit tag (see modifiers)", "es": "Marca explícita (ver modificadores)"}),
     ("{item.dolby}", {"en": "Dolby Atmos flag (see modifiers)", "es": "Marca Dolby Atmos (ver modificadores)"}),
-    ("{item.releaseDate}", {"en": "Release date (accepts date formats)", "es": "Fecha de lanzamiento (acepta formatos de fecha)"}),
+    ("{item.releaseDate}", {"en": "Release date — date format: {item.releaseDate:%Y} → 1997, {item.releaseDate:%Y-%m-%d} → 1997-06-16",
+                            "es": "Fecha de lanzamiento — formato de fecha: {item.releaseDate:%Y} → 1997, {item.releaseDate:%Y-%m-%d} → 1997-06-16"}),
     ("{item.id}", {"en": "TIDAL track ID", "es": "ID de la pista en TIDAL"}),
 ]
 HELP_ALBUM = [
@@ -649,7 +654,8 @@ HELP_ALBUM = [
     ("{album.safe_title}", {"en": "Album title, filesystem-safe", "es": "Título del álbum, apto para archivos"}),
     ("{album.artist}", {"en": "Album's main artist", "es": "Artista principal del álbum"}),
     ("{album.artists}", {"en": "All album artists joined", "es": "Todos los artistas del álbum unidos"}),
-    ("{album.date}", {"en": "Release date (accepts date formats)", "es": "Fecha de lanzamiento (acepta formatos de fecha)"}),
+    ("{album.date}", {"en": "Release date — date format: {album.date:%Y} → 1997, {album.date:%Y-%m-%d} → 1997-06-16",
+                      "es": "Fecha de lanzamiento — formato de fecha: {album.date:%Y} → 1997, {album.date:%Y-%m-%d} → 1997-06-16"}),
     ("{album.release}", {"en": "Type: ALBUM / EP / SINGLE…", "es": "Tipo: ALBUM / EP / SINGLE…"}),
     ("{album.explicit}", {"en": "Explicit tag (see modifiers)", "es": "Marca explícita (ver modificadores)"}),
     ("{album.master}", {"en": "Master/HiRes flag (see modifiers)", "es": "Marca Master/HiRes (ver modificadores)"}),
@@ -658,8 +664,10 @@ HELP_ALBUM = [
 HELP_PLAYLIST = [
     ("{playlist.title}", {"en": "Playlist name", "es": "Nombre de la playlist"}),
     ("{playlist.index}", {"en": "Track's position in the playlist", "es": "Posición de la canción en la playlist"}),
-    ("{playlist.created}", {"en": "Creation date (accepts date formats)", "es": "Fecha de creación (acepta formatos de fecha)"}),
-    ("{playlist.updated}", {"en": "Last-updated date (accepts date formats)", "es": "Fecha de última actualización (acepta formatos de fecha)"}),
+    ("{playlist.created}", {"en": "Creation date — date format: {playlist.created:%Y} → 1997",
+                            "es": "Fecha de creación — formato de fecha: {playlist.created:%Y} → 1997"}),
+    ("{playlist.updated}", {"en": "Last-updated date — date format: {playlist.updated:%Y} → 1997",
+                            "es": "Fecha de última actualización — formato de fecha: {playlist.updated:%Y} → 1997"}),
     ("{playlist.uuid}", {"en": "Playlist UUID", "es": "UUID de la playlist"}),
 ]
 HELP_EXPLICIT_FMT = [
