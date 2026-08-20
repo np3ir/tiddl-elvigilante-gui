@@ -79,7 +79,7 @@ except ModuleNotFoundError:  # Python < 3.11
     tomllib = None
 
 # Bump this every release; the built installer version should match.
-APP_VERSION = "1.0.18"
+APP_VERSION = "1.0.19"
 GUI_REPO = "np3ir/tiddl-elvigilante-gui"
 RELEASES_URL = f"https://github.com/{GUI_REPO}/releases/latest"
 API_LATEST = f"https://api.github.com/repos/{GUI_REPO}/releases/latest"
@@ -293,6 +293,13 @@ STRINGS: dict[str, dict[str, str]] = {
         "max_tracks": "Max tracks / session (0 = ∞)",
         "rewrite_cb": "Rewrite metadata on existing files",
         "mtime_cb": "Set file date to release date",
+        "exclude_comp_cb": "Skip compilations (artist downloads)",
+        "exclude_live_cb": "Skip live albums (artist downloads)",
+        "exclude_help": (
+            "When downloading a whole artist, leave these out. Identified from "
+            "the TIDAL artist page, the same as the app's Compilations / Live "
+            "albums sections."
+        ),
         # --- new: m3u ---
         "sec_m3u": "Playlists (.m3u)",
         "m3u_save_cb": "Generate .m3u playlist files",
@@ -493,6 +500,13 @@ STRINGS: dict[str, dict[str, str]] = {
         "max_tracks": "Máx. canciones / sesión (0 = ∞)",
         "rewrite_cb": "Reescribir metadatos en archivos existentes",
         "mtime_cb": "Fecha del archivo = fecha de lanzamiento",
+        "exclude_comp_cb": "Omitir recopilatorios (descargas de artista)",
+        "exclude_live_cb": "Omitir álbumes en directo (descargas de artista)",
+        "exclude_help": (
+            "Al descargar un artista completo, déjalos fuera. Se identifican "
+            "desde la página del artista en TIDAL, igual que las secciones "
+            "Compilations / Live albums de la app."
+        ),
         # --- new: m3u ---
         "sec_m3u": "Listas (.m3u)",
         "m3u_save_cb": "Generar archivos de lista .m3u",
@@ -695,7 +709,8 @@ STASH_FIELDS = [
     "f_cover_track", "f_cover_album", "f_cover_playlist",
     # advanced download
     "f_video_quality", "f_hires_client", "f_rpm", "f_concurrency",
-    "f_max_tracks", "f_rewrite", "f_update_mtime", "f_audio_mode", "f_quality_policy",
+    "f_max_tracks", "f_rewrite", "f_update_mtime", "f_exclude_compilations",
+    "f_exclude_live", "f_audio_mode", "f_quality_policy",
     # m3u
     "f_m3u_save", "f_m3u_album", "f_m3u_playlist", "f_m3u_mix",
 ]
@@ -1485,6 +1500,14 @@ class TiddlGui:
         self.f_update_mtime = ft.Checkbox(
             label=self.t("mtime_cb"), value=bool(self.cfg_dl("update_mtime", False))
         )
+        self.f_exclude_compilations = ft.Checkbox(
+            label=self.t("exclude_comp_cb"),
+            value=bool(self.cfg_dl("exclude_compilations", False)),
+        )
+        self.f_exclude_live = ft.Checkbox(
+            label=self.t("exclude_live_cb"),
+            value=bool(self.cfg_dl("exclude_live_albums", False)),
+        )
 
         # --- m3u ---
         _m3u_allowed = self.cfg_m3u("allowed", []) or []
@@ -1610,6 +1633,8 @@ class TiddlGui:
                         ),
                         ft.Text(self.t("hires_client_hint"), size=11, color=ft.Colors.OUTLINE),
                         ft.Row([self.f_rewrite, self.f_update_mtime], wrap=True),
+                        ft.Row([self.f_exclude_compilations, self.f_exclude_live], wrap=True),
+                        ft.Text(self.t("exclude_help"), size=11, color=ft.Colors.OUTLINE),
                     ],
                     expanded=False,
                 ),
@@ -1939,6 +1964,8 @@ class TiddlGui:
         self.f_concurrency.value = str(self.cfg_dl("artist_concurrency", 1))
         self.f_max_tracks.value = str(self.cfg_dl("max_tracks_per_session", 0))
         self.f_rewrite.value = bool(self.cfg_dl("rewrite_metadata", False))
+        self.f_exclude_compilations.value = bool(self.cfg_dl("exclude_compilations", False))
+        self.f_exclude_live.value = bool(self.cfg_dl("exclude_live_albums", False))
         self.f_update_mtime.value = bool(self.cfg_dl("update_mtime", False))
         _audio_mode = str(load_gui_settings().get("audio_mode", "auto")).casefold()
         self.f_audio_mode.value = _audio_mode if _audio_mode in AUDIO_MODES else "auto"
@@ -2005,6 +2032,8 @@ class TiddlGui:
             dl["singles_filter"] = self.f_singles.value or "none"
             dl["videos_filter"] = self.f_videos.value or "none"
             dl["rewrite_metadata"] = bool(self.f_rewrite.value)
+            dl["exclude_compilations"] = bool(self.f_exclude_compilations.value)
+            dl["exclude_live_albums"] = bool(self.f_exclude_live.value)
             dl["update_mtime"] = bool(self.f_update_mtime.value)
             for key, field in [
                 ("download_path", self.f_download_path),
@@ -2496,6 +2525,8 @@ class TiddlGui:
             CONFIG.download.hires_client = self.f_hires_client.value or "auto"
             CONFIG.download.requests_per_minute = max(0, _int(self.f_rpm.value, 20))
             CONFIG.download.update_mtime = bool(self.f_update_mtime.value)
+            CONFIG.download.exclude_compilations = bool(self.f_exclude_compilations.value)
+            CONFIG.download.exclude_live_albums = bool(self.f_exclude_live.value)
             CONFIG.download.max_tracks_per_session = max(0, _int(self.f_max_tracks.value, 0))
 
             CONFIG.m3u.save = bool(self.f_m3u_save.value)
