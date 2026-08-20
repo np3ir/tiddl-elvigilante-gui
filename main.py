@@ -79,10 +79,62 @@ except ModuleNotFoundError:  # Python < 3.11
     tomllib = None
 
 # Bump this every release; the built installer version should match.
-APP_VERSION = "1.0.19"
+APP_VERSION = "1.0.20"
 GUI_REPO = "np3ir/tiddl-elvigilante-gui"
 RELEASES_URL = f"https://github.com/{GUI_REPO}/releases/latest"
 API_LATEST = f"https://api.github.com/repos/{GUI_REPO}/releases/latest"
+
+# --- Crash logging -----------------------------------------------------------
+# tiddl runs in-process under flet's embedded Python; a native crash or an
+# uncaught worker-thread exception otherwise makes the window vanish with no
+# trace. Capture everything to TIDDL_PATH/gui-crash.log so a "closed while
+# processing" can actually be diagnosed.
+import faulthandler as _faulthandler
+import threading as _threading
+import traceback as _tb
+
+
+def crash_log_path() -> Path:
+    base = os.environ.get("TIDDL_PATH") or str(Path.home() / ".tiddl")
+    p = Path(base)
+    try:
+        p.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+    return p / "gui-crash.log"
+
+
+def write_crash(header: str, exc: BaseException | None = None) -> None:
+    try:
+        with open(crash_log_path(), "a", encoding="utf-8") as f:
+            f.write(
+                f"\n===== {header} @ {datetime.datetime.now().isoformat()} "
+                f"(app {APP_VERSION}) =====\n"
+            )
+            if exc is not None:
+                f.write("".join(_tb.format_exception(type(exc), exc, exc.__traceback__)))
+            f.flush()
+    except Exception:
+        pass
+
+
+# faulthandler dumps a traceback (native/fatal faults included, all threads) here.
+try:
+    _CRASH_FILE = open(crash_log_path(), "a", encoding="utf-8")
+    _faulthandler.enable(file=_CRASH_FILE, all_threads=True)
+except Exception:
+    _CRASH_FILE = None
+
+
+def _thread_excepthook(args):
+    write_crash(
+        f"uncaught exception in thread {getattr(args, 'thread', None)!r}",
+        args.exc_value,
+    )
+
+
+_threading.excepthook = _thread_excepthook
+# -----------------------------------------------------------------------------
 OFFLINE_MODE = os.environ.get("TIDDL_GUI_OFFLINE", "").strip().casefold() in {
     "1", "true", "yes", "on"
 }
@@ -775,8 +827,9 @@ def run_tiddl(argv: list[str], on_line) -> int:
         except SystemExit as e:  # some paths still raise it; treat as exit code
             code = e.code
             return code if isinstance(code, int) else (0 if code is None else 1)
-    except Exception as e:  # surface a command failure into the log
-        on_line(f"Error: {type(e).__name__}: {e}")
+    except BaseException as e:  # log to gui-crash.log AND surface into the GUI log
+        write_crash("run_tiddl exception", e)
+        on_line(f"Error: {type(e).__name__}: {e}  (details in gui-crash.log)")
         return 1
     finally:
         sink.drain()
