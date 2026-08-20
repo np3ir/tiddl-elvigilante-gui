@@ -14,8 +14,9 @@ Desktop GUI for [tiddl-elvigilante](https://github.com/np3ir/tiddl-elvigilante),
 ## Features
 
 - **Paste any TIDAL link** — track, album, playlist, artist or mix; hundreds at a time (long lists are split into runs automatically)
-- **Independent edition and quality controls** — keep the original link or find a stereo-only edition; select Low, Normal, High or MAX with a flexible or strict policy
+- **Independent edition and quality controls** — keep the original link or find a stereo-only edition (albums **and** whole artists); select Low, Normal, High or MAX with a flexible or strict policy
 - **Catalog check without downloading** — for direct album links, find a compatible stereo edition and review track-list differences before transferring audio
+- **Skip compilations / live albums** — leave those out when downloading a whole artist (identified from the TIDAL artist page, like the app's own sections)
 - **Smart playlist handling** — download as playlist, or expand into **full albums**, **artist discographies** or **standalone tracks** (each with its proper folder layout and templates)
 - **Artist safety dialog** — confirms before massive discography downloads and lets you pick singles/videos per run
 - **Live progress** — real progress bar with counter, currently-downloading track with percentage, timestamped log
@@ -45,10 +46,18 @@ Requires an active TIDAL subscription (HiFi for lossless quality).
 ### Audio edition and quality
 
 - **Automatic** keeps the album or track from the supplied link, including Atmos when that is the linked edition.
-- **Stereo only** searches TIDAL for a matching edition and rejects an Atmos manifest before audio transfer. Automatic edition matching currently supports direct album links.
+- **Stereo only** searches TIDAL for a matching edition and rejects an Atmos manifest before audio transfer. It works on both direct **album** links and whole **artist** links (every album in the discography is resolved; an album with no stereo edition keeps its original).
 - **Flexible** treats the selected quality as a ceiling and uses the best available tier at or below it. For example, MAX may fall back to High, Normal or Low.
 - **Strict** requires the exact selected tier; if TIDAL does not deliver it, the download stops instead of degrading.
 - **Check available versions** queries the catalog and reports the result without downloading audio files.
+
+### Skip compilations / live albums
+
+Under **Settings → Advanced download**, two checkboxes let you leave compilations
+and/or live albums out when downloading a whole artist. TIDAL lists them as
+ordinary albums, so they are identified from the artist page — the same
+Compilations / Live albums sections the TIDAL app shows — so the match is
+reliable. Off by default; saved with your defaults.
 
 ## Install (Linux)
 

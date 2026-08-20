@@ -14,8 +14,9 @@ Interfaz de escritorio para [tiddl-elvigilante](https://github.com/np3ir/tiddl-e
 ## Funciones
 
 - **Pega cualquier enlace de TIDAL** — canción, álbum, playlist, artista o mix; cientos a la vez (las listas largas se dividen automáticamente)
-- **Control independiente de edición y calidad** — usa el enlace original o busca una edición solo estéreo; selecciona Low, Normal, High o MAX con política flexible o estricta
+- **Control independiente de edición y calidad** — usa el enlace original o busca una edición solo estéreo (álbumes **y** artistas completos); selecciona Low, Normal, High o MAX con política flexible o estricta
 - **Comprobación sin descarga** — para enlaces directos de álbum, busca una edición estéreo compatible y muestra las diferencias antes de transferir audio
+- **Omitir recopilatorios / álbumes en directo** — déjalos fuera al descargar un artista completo (se identifican desde la página del artista en TIDAL, como las secciones de la app)
 - **Manejo inteligente de playlists** — bájala como playlist, o expándela en **álbumes completos**, **discografías de artistas** o **canciones sueltas** (cada uno con su estructura de carpetas y templates)
 - **Diálogo de seguridad para artistas** — confirma antes de descargas masivas de discografías y te deja elegir singles/videos por corrida
 - **Progreso en vivo** — barra de progreso real con contador, canción descargándose con porcentaje, log con marcas de tiempo
@@ -45,10 +46,18 @@ Requiere una suscripción activa de TIDAL (HiFi para calidad lossless).
 ### Edición de audio y calidad
 
 - **Automática** conserva el álbum o la canción del enlace original, incluido Atmos si esa es la edición suministrada.
-- **Solo estéreo** busca dentro del catálogo de TIDAL una edición equivalente y rechaza cualquier manifiesto Atmos antes de transferir audio. La búsqueda automática se aplica actualmente a enlaces directos de álbum.
+- **Solo estéreo** busca dentro del catálogo de TIDAL una edición equivalente y rechaza cualquier manifiesto Atmos antes de transferir audio. Funciona con enlaces directos de **álbum** y con enlaces de **artista** completo (se resuelve cada álbum de la discografía; si un álbum no tiene edición estéreo, se mantiene el original).
 - **Flexible** toma la calidad seleccionada como máximo y usa la mejor calidad disponible sin superarla. Por ejemplo, MAX puede bajar a High, Normal o Low.
 - **Estricta** exige exactamente la calidad seleccionada; si TIDAL no la entrega, la descarga se detiene en lugar de degradar.
 - **Comprobar versiones disponibles** consulta el catálogo y presenta el resultado sin descargar archivos de audio.
+
+### Omitir recopilatorios / álbumes en directo
+
+En **Ajustes → Descarga avanzada**, dos casillas te dejan excluir recopilatorios
+y/o álbumes en directo al descargar un artista completo. TIDAL los lista como
+álbumes normales, así que se identifican desde la página del artista — las mismas
+secciones Compilations / Live albums que muestra la app — para que el match sea
+fiable. Desactivadas por defecto; se guardan con tus ajustes.
 
 ## Instalar (Linux)
 
