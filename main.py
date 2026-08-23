@@ -79,7 +79,7 @@ except ModuleNotFoundError:  # Python < 3.11
     tomllib = None
 
 # Bump this every release; the built installer version should match.
-APP_VERSION = "1.0.20"
+APP_VERSION = "1.0.21"
 GUI_REPO = "np3ir/tiddl-elvigilante-gui"
 RELEASES_URL = f"https://github.com/{GUI_REPO}/releases/latest"
 API_LATEST = f"https://api.github.com/repos/{GUI_REPO}/releases/latest"
@@ -139,7 +139,7 @@ OFFLINE_MODE = os.environ.get("TIDDL_GUI_OFFLINE", "").strip().casefold() in {
     "1", "true", "yes", "on"
 }
 
-QUALITIES = ["low", "normal", "high", "max"]
+QUALITIES = ["low", "normal", "atmos", "high", "max"]
 AUDIO_MODES = ["auto", "stereo"]
 QUALITY_POLICIES = ["flexible", "strict"]
 SINGLES_FILTERS = ["none", "only", "include"]
@@ -270,8 +270,21 @@ STRINGS: dict[str, dict[str, str]] = {
         "quality": "Quality",
         "quality_low": "Low",
         "quality_normal": "Normal",
+        "quality_atmos": "Atmos (Dolby Atmos)",
         "quality_high": "High (lossless)",
         "quality_max": "MAX (Hi-Res lossless)",
+        "quality_help": (
+            "Starting rung of the cascade  max > high > atmos > normal > low. "
+            "Each track is taken at the first rung from here DOWN that it offers. "
+            "Start at high/max to prefer FLAC; an Atmos track's only FLAC is 'max' "
+            "(so 'high' falls to Atmos), and 'atmos' takes Dolby Atmos first."
+        ),
+        "resume": "Resume (skip artists already done)",
+        "resume_tip": (
+            "Skip whole resources completed in a prior run of this SAME job "
+            "(same links + options) before any API call — cheap continuation of a "
+            "run stopped by a rate-limit or cancel. Trusts its checkpoint over disk."
+        ),
         "audio_mode": "Audio edition",
         "audio_mode_auto": "Automatic (original link)",
         "audio_mode_stereo": "Stereo only",
@@ -477,8 +490,21 @@ STRINGS: dict[str, dict[str, str]] = {
         "quality": "Calidad",
         "quality_low": "Low (baja)",
         "quality_normal": "Normal",
+        "quality_atmos": "Atmos (Dolby Atmos)",
         "quality_high": "High (sin pérdida)",
         "quality_max": "MAX (alta resolución sin pérdida)",
+        "quality_help": (
+            "Escalón inicial de la cascada  max > high > atmos > normal > low. "
+            "Cada pista se toma en el primer escalón disponible hacia ABAJO. "
+            "Empieza en high/max para preferir FLAC; en una pista Atmos el único FLAC "
+            "es 'max' (así 'high' cae a Atmos), y 'atmos' toma Dolby Atmos primero."
+        ),
+        "resume": "Reanudar (saltar artistas ya hechos)",
+        "resume_tip": (
+            "Salta recursos completados en una corrida previa del MISMO trabajo "
+            "(mismos enlaces + opciones) antes de llamar a la API — continuación barata "
+            "de una corrida detenida por rate-limit o cancelada. Confía en su checkpoint."
+        ),
         "redownload": "Re-descargar archivos existentes",
         "audio_mode": "Edición de audio",
         "audio_mode_auto": "Automática (enlace original)",
@@ -762,7 +788,7 @@ STASH_FIELDS = [
     # advanced download
     "f_video_quality", "f_hires_client", "f_rpm", "f_concurrency",
     "f_max_tracks", "f_rewrite", "f_update_mtime", "f_exclude_compilations",
-    "f_exclude_live", "f_audio_mode", "f_quality_policy",
+    "f_exclude_live", "f_audio_mode", "f_quality_policy", "f_resume",
     # m3u
     "f_m3u_save", "f_m3u_album", "f_m3u_playlist", "f_m3u_mix",
 ]
@@ -1251,6 +1277,7 @@ class TiddlGui:
             label=self.t("quality"),
             width=230,
             value=quality if quality in QUALITIES else "high",
+            tooltip=self.t("quality_help"),
             options=[
                 ft.DropdownOption(key=q, text=self.t(f"quality_{q}"))
                 for q in QUALITIES
@@ -1282,6 +1309,9 @@ class TiddlGui:
         )
 
         self.noskip_cb = ft.Checkbox(label=self.t("redownload"), value=False)
+        self.f_resume = ft.Checkbox(
+            label=self.t("resume"), value=False, tooltip=self.t("resume_tip")
+        )
 
         self.download_btn = ft.FilledButton(
             content=self.t("btn_download"),
@@ -1341,6 +1371,7 @@ class TiddlGui:
                         self.f_audio_mode,
                         self.f_quality_policy,
                         self.noskip_cb,
+                        self.f_resume,
                     ],
                     wrap=True,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -2466,6 +2497,8 @@ class TiddlGui:
             cmd.append(f"--{expand}")
         if self.noskip_cb.value:
             cmd.append("-ns")
+        if self.f_resume.value:
+            cmd.append("--resume")
         cmd += ["url", *urls]
         return cmd
 
