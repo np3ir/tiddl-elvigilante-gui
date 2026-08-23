@@ -79,7 +79,7 @@ except ModuleNotFoundError:  # Python < 3.11
     tomllib = None
 
 # Bump this every release; the built installer version should match.
-APP_VERSION = "1.0.20"
+APP_VERSION = "1.0.21"
 GUI_REPO = "np3ir/tiddl-elvigilante-gui"
 RELEASES_URL = f"https://github.com/{GUI_REPO}/releases/latest"
 API_LATEST = f"https://api.github.com/repos/{GUI_REPO}/releases/latest"
@@ -139,7 +139,7 @@ OFFLINE_MODE = os.environ.get("TIDDL_GUI_OFFLINE", "").strip().casefold() in {
     "1", "true", "yes", "on"
 }
 
-QUALITIES = ["low", "normal", "high", "max"]
+QUALITIES = ["low", "normal", "atmos", "high", "max"]
 AUDIO_MODES = ["auto", "stereo"]
 QUALITY_POLICIES = ["flexible", "strict"]
 SINGLES_FILTERS = ["none", "only", "include"]
@@ -270,22 +270,38 @@ STRINGS: dict[str, dict[str, str]] = {
         "quality": "Quality",
         "quality_low": "Low",
         "quality_normal": "Normal",
+        "quality_atmos": "Atmos (Dolby Atmos)",
         "quality_high": "High (lossless)",
         "quality_max": "MAX (Hi-Res lossless)",
+        "quality_help": (
+            "Starting rung of the cascade  max > high > atmos > normal > low. "
+            "Each track is taken at the first rung from here DOWN that it offers. "
+            "Start at high/max to prefer FLAC; an Atmos track's only FLAC is 'max' "
+            "(so 'high' falls to Atmos), and 'atmos' takes Dolby Atmos first."
+        ),
+        "resume": "Resume (skip artists already done)",
+        "resume_tip": (
+            "Skip whole resources completed in a prior run of this SAME job "
+            "(same links + options) before any API call — cheap continuation of a "
+            "run stopped by a rate-limit or cancel. Trusts its checkpoint over disk."
+        ),
         "audio_mode": "Audio edition",
         "audio_mode_auto": "Automatic (original link)",
         "audio_mode_stereo": "Stereo only",
         "audio_mode_help": (
-            "auto = use the supplied TIDAL link; stereo = find a matching stereo album "
-            "and verify its playback metadata before transfer (direct album links)."
+            "Stereo-EDITION resolver. 'stereo' finds a separately-published stereo "
+            "album edition and verifies it — it applies to ALBUM and ARTIST links "
+            "ONLY. On a playlist/mix it does nothing (you'll see \"keeping ... "
+            "unchanged\"). To avoid Atmos / prefer FLAC on ANY link, use the Quality "
+            "cascade instead (it works per track). 'auto' uses the supplied link."
         ),
         "quality_policy": "Quality policy",
         "quality_policy_flexible": "Flexible (allow lower tiers)",
         "quality_policy_strict": "Strict (exact tier only)",
         "quality_policy_help": (
             "flexible = treat the selected quality as a ceiling and use the highest available "
-            "tier below it; strict = transfer only the exact selected quality. Combine with "
-            "stereo to guarantee no Atmos."
+            "tier below it; strict = transfer only the exact selected quality. (No-Atmos is "
+            "handled by the Quality cascade, which already prefers FLAC over Atmos per track.)"
         ),
         "core_stopped": "Download engine stopped the run for safety (authentication or stream policy)",
         "redownload": "Re-download existing files",
@@ -477,23 +493,39 @@ STRINGS: dict[str, dict[str, str]] = {
         "quality": "Calidad",
         "quality_low": "Low (baja)",
         "quality_normal": "Normal",
+        "quality_atmos": "Atmos (Dolby Atmos)",
         "quality_high": "High (sin pérdida)",
         "quality_max": "MAX (alta resolución sin pérdida)",
+        "quality_help": (
+            "Escalón inicial de la cascada  max > high > atmos > normal > low. "
+            "Cada pista se toma en el primer escalón disponible hacia ABAJO. "
+            "Empieza en high/max para preferir FLAC; en una pista Atmos el único FLAC "
+            "es 'max' (así 'high' cae a Atmos), y 'atmos' toma Dolby Atmos primero."
+        ),
+        "resume": "Reanudar (saltar artistas ya hechos)",
+        "resume_tip": (
+            "Salta recursos completados en una corrida previa del MISMO trabajo "
+            "(mismos enlaces + opciones) antes de llamar a la API — continuación barata "
+            "de una corrida detenida por rate-limit o cancelada. Confía en su checkpoint."
+        ),
         "redownload": "Re-descargar archivos existentes",
         "audio_mode": "Edición de audio",
         "audio_mode_auto": "Automática (enlace original)",
         "audio_mode_stereo": "Solo estéreo",
         "audio_mode_help": (
-            "Automática usa el enlace suministrado. Solo estéreo busca una edición equivalente "
-            "y comprueba el audio antes de transferirlo (solo enlaces directos de álbum)."
+            "Resolver de EDICIÓN estéreo. 'Solo estéreo' busca una edición de álbum "
+            "estéreo publicada aparte y la verifica — aplica SOLO a enlaces de ÁLBUM "
+            "y ARTISTA. En una playlist/mix no hace nada (verás \"keeping ... "
+            "unchanged\"). Para evitar Atmos / preferir FLAC en CUALQUIER enlace, usa "
+            "la cascada de Calidad (actúa por pista). 'Automática' usa el enlace tal cual."
         ),
         "quality_policy": "Política de calidad",
         "quality_policy_flexible": "Flexible (permite calidades inferiores)",
         "quality_policy_strict": "Estricta (solo la calidad exacta)",
         "quality_policy_help": (
             "Flexible usa la calidad seleccionada como máximo y elige la mejor disponible sin "
-            "superarla. Estricta exige exactamente la calidad seleccionada. Solo estéreo impide "
-            "que se transfiera audio Atmos."
+            "superarla. Estricta exige exactamente la calidad seleccionada. (Lo de evitar Atmos "
+            "lo maneja la cascada de Calidad, que ya prefiere FLAC sobre Atmos por pista.)"
         ),
         "core_stopped": "El motor detuvo la ejecución por seguridad (autenticación o política de audio)",
         "btn_download": "Descargar",
@@ -762,7 +794,7 @@ STASH_FIELDS = [
     # advanced download
     "f_video_quality", "f_hires_client", "f_rpm", "f_concurrency",
     "f_max_tracks", "f_rewrite", "f_update_mtime", "f_exclude_compilations",
-    "f_exclude_live", "f_audio_mode", "f_quality_policy",
+    "f_exclude_live", "f_audio_mode", "f_quality_policy", "f_resume",
     # m3u
     "f_m3u_save", "f_m3u_album", "f_m3u_playlist", "f_m3u_mix",
 ]
@@ -1251,6 +1283,7 @@ class TiddlGui:
             label=self.t("quality"),
             width=230,
             value=quality if quality in QUALITIES else "high",
+            tooltip=self.t("quality_help"),
             options=[
                 ft.DropdownOption(key=q, text=self.t(f"quality_{q}"))
                 for q in QUALITIES
@@ -1263,6 +1296,7 @@ class TiddlGui:
             label=self.t("audio_mode"),
             width=240,
             value=_audio_mode if _audio_mode in AUDIO_MODES else "auto",
+            tooltip=self.t("audio_mode_help"),
             options=[
                 ft.DropdownOption(key=mode, text=self.t(f"audio_mode_{mode}"))
                 for mode in AUDIO_MODES
@@ -1275,6 +1309,7 @@ class TiddlGui:
             value=(
                 _quality_policy if _quality_policy in QUALITY_POLICIES else "flexible"
             ),
+            tooltip=self.t("quality_policy_help"),
             options=[
                 ft.DropdownOption(key=policy, text=self.t(f"quality_policy_{policy}"))
                 for policy in QUALITY_POLICIES
@@ -1282,6 +1317,9 @@ class TiddlGui:
         )
 
         self.noskip_cb = ft.Checkbox(label=self.t("redownload"), value=False)
+        self.f_resume = ft.Checkbox(
+            label=self.t("resume"), value=False, tooltip=self.t("resume_tip")
+        )
 
         self.download_btn = ft.FilledButton(
             content=self.t("btn_download"),
@@ -1341,6 +1379,7 @@ class TiddlGui:
                         self.f_audio_mode,
                         self.f_quality_policy,
                         self.noskip_cb,
+                        self.f_resume,
                     ],
                     wrap=True,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -2466,6 +2505,8 @@ class TiddlGui:
             cmd.append(f"--{expand}")
         if self.noskip_cb.value:
             cmd.append("-ns")
+        if self.f_resume.value:
+            cmd.append("--resume")
         cmd += ["url", *urls]
         return cmd
 

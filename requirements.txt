@@ -2,11 +2,10 @@ flet==0.86.1
 tomlkit>=0.13
 # tiddl is bundled INSIDE the app (single binary): flet build reads this
 # requirements file and includes the package, so the GUI runs tiddl in-process
-# with no separate tiddl.exe. Pinned to the reviewed engine commit containing
-# stereo-edition resolution, flexible/strict quality policy, playback-manifest
-# validation, run-wide 401 handling, and the existing NAS/download hardening.
-# This revision (engine v1.4.2) has stereo resolution for ARTIST URLs with a
-# per-run catalog cache, the option to exclude compilations / live albums, and
-# per-album resilience (one bad album no longer aborts a discography), plus the
-# non-zero exit on a safety stop and the strict-Normal -> TIDAL HIGH mapping fix.
-tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@b9b941f6ceb94183942adfeabb526f956a3bface
+# with no separate tiddl.exe. Pinned to the engine commit with the giant-run
+# hardening (run-wide 429 circuit breaker, bounded-memory worker pool, opt-in
+# --resume checkpoint) AND the fidelity quality cascade (max > high > atmos >
+# normal > low, with `atmos` as a -q rung; prefers FLAC over the Atmos AAC that
+# TIDAL serves at the LOSSLESS tier), on top of stereo resolution, flexible/
+# strict quality policy, playback-manifest validation and the per-album resilience.
+tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@969ca7e
