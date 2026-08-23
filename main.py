@@ -289,16 +289,19 @@ STRINGS: dict[str, dict[str, str]] = {
         "audio_mode_auto": "Automatic (original link)",
         "audio_mode_stereo": "Stereo only",
         "audio_mode_help": (
-            "auto = use the supplied TIDAL link; stereo = find a matching stereo album "
-            "and verify its playback metadata before transfer (direct album links)."
+            "Stereo-EDITION resolver. 'stereo' finds a separately-published stereo "
+            "album edition and verifies it — it applies to ALBUM and ARTIST links "
+            "ONLY. On a playlist/mix it does nothing (you'll see \"keeping ... "
+            "unchanged\"). To avoid Atmos / prefer FLAC on ANY link, use the Quality "
+            "cascade instead (it works per track). 'auto' uses the supplied link."
         ),
         "quality_policy": "Quality policy",
         "quality_policy_flexible": "Flexible (allow lower tiers)",
         "quality_policy_strict": "Strict (exact tier only)",
         "quality_policy_help": (
             "flexible = treat the selected quality as a ceiling and use the highest available "
-            "tier below it; strict = transfer only the exact selected quality. Combine with "
-            "stereo to guarantee no Atmos."
+            "tier below it; strict = transfer only the exact selected quality. (No-Atmos is "
+            "handled by the Quality cascade, which already prefers FLAC over Atmos per track.)"
         ),
         "core_stopped": "Download engine stopped the run for safety (authentication or stream policy)",
         "redownload": "Re-download existing files",
@@ -510,16 +513,19 @@ STRINGS: dict[str, dict[str, str]] = {
         "audio_mode_auto": "Automática (enlace original)",
         "audio_mode_stereo": "Solo estéreo",
         "audio_mode_help": (
-            "Automática usa el enlace suministrado. Solo estéreo busca una edición equivalente "
-            "y comprueba el audio antes de transferirlo (solo enlaces directos de álbum)."
+            "Resolver de EDICIÓN estéreo. 'Solo estéreo' busca una edición de álbum "
+            "estéreo publicada aparte y la verifica — aplica SOLO a enlaces de ÁLBUM "
+            "y ARTISTA. En una playlist/mix no hace nada (verás \"keeping ... "
+            "unchanged\"). Para evitar Atmos / preferir FLAC en CUALQUIER enlace, usa "
+            "la cascada de Calidad (actúa por pista). 'Automática' usa el enlace tal cual."
         ),
         "quality_policy": "Política de calidad",
         "quality_policy_flexible": "Flexible (permite calidades inferiores)",
         "quality_policy_strict": "Estricta (solo la calidad exacta)",
         "quality_policy_help": (
             "Flexible usa la calidad seleccionada como máximo y elige la mejor disponible sin "
-            "superarla. Estricta exige exactamente la calidad seleccionada. Solo estéreo impide "
-            "que se transfiera audio Atmos."
+            "superarla. Estricta exige exactamente la calidad seleccionada. (Lo de evitar Atmos "
+            "lo maneja la cascada de Calidad, que ya prefiere FLAC sobre Atmos por pista.)"
         ),
         "core_stopped": "El motor detuvo la ejecución por seguridad (autenticación o política de audio)",
         "btn_download": "Descargar",
@@ -1290,6 +1296,7 @@ class TiddlGui:
             label=self.t("audio_mode"),
             width=240,
             value=_audio_mode if _audio_mode in AUDIO_MODES else "auto",
+            tooltip=self.t("audio_mode_help"),
             options=[
                 ft.DropdownOption(key=mode, text=self.t(f"audio_mode_{mode}"))
                 for mode in AUDIO_MODES
@@ -1302,6 +1309,7 @@ class TiddlGui:
             value=(
                 _quality_policy if _quality_policy in QUALITY_POLICIES else "flexible"
             ),
+            tooltip=self.t("quality_policy_help"),
             options=[
                 ft.DropdownOption(key=policy, text=self.t(f"quality_policy_{policy}"))
                 for policy in QUALITY_POLICIES
