@@ -274,10 +274,11 @@ STRINGS: dict[str, dict[str, str]] = {
         "quality_high": "High (lossless)",
         "quality_max": "MAX (Hi-Res lossless)",
         "quality_help": (
-            "Starting rung of the cascade  max > high > atmos > normal > low. "
-            "Each track is taken at the first rung from here DOWN that it offers. "
-            "Start at high/max to prefer FLAC; an Atmos track's only FLAC is 'max' "
-            "(so 'high' falls to Atmos), and 'atmos' takes Dolby Atmos first."
+            "Starting rung of the cascade  max > high > atmos > normal > low, "
+            "each track taken at the first tier it offers. high and max PREFER "
+            "FLAC: on an Atmos track (which has no 16-bit FLAC) high CLIMBS to max "
+            "for the 24-bit FLAC instead of dropping to Atmos. Pick atmos to take "
+            "Dolby Atmos first."
         ),
         "resume": "Resume (skip items already done)",
         "resume_tip": (
@@ -497,10 +498,11 @@ STRINGS: dict[str, dict[str, str]] = {
         "quality_high": "High (sin pérdida)",
         "quality_max": "MAX (alta resolución sin pérdida)",
         "quality_help": (
-            "Escalón inicial de la cascada  max > high > atmos > normal > low. "
-            "Cada pista se toma en el primer escalón disponible hacia ABAJO. "
-            "Empieza en high/max para preferir FLAC; en una pista Atmos el único FLAC "
-            "es 'max' (así 'high' cae a Atmos), y 'atmos' toma Dolby Atmos primero."
+            "Escalón inicial de la cascada  max > high > atmos > normal > low; "
+            "cada pista se toma en el primer nivel que ofrezca. high y max PREFIEREN "
+            "FLAC: en una pista Atmos (que no tiene FLAC de 16-bit) high SUBE a max "
+            "para el FLAC 24-bit en vez de bajar a Atmos. Elige atmos para tomar "
+            "Dolby Atmos primero."
         ),
         "resume": "Reanudar (saltar recursos ya hechos)",
         "resume_tip": (
