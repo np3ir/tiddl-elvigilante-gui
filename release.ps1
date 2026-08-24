@@ -44,12 +44,10 @@ $work = "C:\tiddl-gui"
 $rel  = "C:\tiddl-release"
 $iscc = "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
 
-if (-not $Version) {
-    $versionMatch = Select-String -Path (Join-Path $Src "main.py") -Pattern '^APP_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)"$'
-    if (-not $versionMatch) { throw "No se pudo leer APP_VERSION desde main.py" }
-    $Version = $versionMatch.Matches[0].Groups[1].Value
-}
-if ($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$') { throw "Version invalida: '$Version' (esperado X.Y.Z)." }
+# La version SIEMPRE proviene de APP_VERSION de main.py; si se paso -Version,
+# DEBE coincidir (la version externa del exe no puede contradecir la interna).
+$appVersion = Get-AppVersion -MainPyPath (Join-Path $Src "main.py")
+$Version = Resolve-ReleaseVersion -Requested $Version -AppVersion $appVersion
 
 # ---------- 1. GUI (flet build) ----------
 if (-not $SkipGui) {
@@ -87,18 +85,7 @@ if (-not $SkipGui) {
     Set-Location $work
     "y" | flet build windows --project tiddl-gui --product "tiddl by ElVigilante" `
         --company ElVigilante --build-version $Version
-
-    # Manifiesto de procedencia (version + pin del motor) para validar en -SkipGui.
-    Write-Provenance -ManifestPath (Join-Path $work "build\provenance.json") `
-        -Version $Version -EnginePin (Get-EnginePin -RequirementsPath (Join-Path $work "requirements.txt"))
 } else { Write-Host "[1/2] GUI: reusando build existente" -ForegroundColor Yellow }
-
-# Con -SkipGui: validar la procedencia del build reutilizado contra el pin actual
-# de requirements.txt (evita empaquetar un binario 1.0.22 con OTRO motor).
-if ($SkipGui) {
-    Assert-Provenance -ManifestPath (Join-Path $work "build\provenance.json") `
-        -Version $Version -EnginePin (Get-EnginePin -RequirementsPath (Join-Path $Src "requirements.txt"))
-}
 
 # Verificacion del ejecutable — SIEMPRE, incluso con -SkipGui: un instalador
 # etiquetado $Version no debe empaquetar un binario viejo que quedo en el staging.
@@ -109,6 +96,22 @@ if (-not $exeVersion) { $exeVersion = (Get-Item $exe).VersionInfo.FileVersion }
 if (-not $exeVersion) { throw "El exe '$exe' no expone metadatos de version; no se puede verificar contra '$Version'." }
 if (-not (Test-VersionMatch -Exe $exeVersion -Want $Version)) {
     throw "Version del exe ('$exeVersion') no coincide con la pedida ('$Version')."
+}
+
+# ---- Procedencia: el build fresco ESCRIBE el manifiesto (vinculado por SHA-256
+# al exe + main.py + requirements.txt actuales); -SkipGui lo VALIDA contra esos
+# mismos hashes y el pin actual, rechazando un binario viejo o de otra fuente ----
+$manifest  = Join-Path $work "build\provenance.json"
+$enginePin = Get-EnginePin -RequirementsPath (Join-Path $Src "requirements.txt")
+$srcMain   = Join-Path $Src "main.py"
+$srcReq    = Join-Path $Src "requirements.txt"
+if (-not $SkipGui) {
+    $srcCommit = (& git -C $Src rev-parse HEAD 2>$null); if (-not $srcCommit) { $srcCommit = 'unknown' }
+    Write-Provenance -ManifestPath $manifest -Version $Version -EnginePin $enginePin `
+        -ExePath $exe -MainPyPath $srcMain -RequirementsPath $srcReq -SourceCommit $srcCommit
+} else {
+    Assert-Provenance -ManifestPath $manifest -Version $Version -EnginePin $enginePin `
+        -ExePath $exe -MainPyPath $srcMain -RequirementsPath $srcReq
 }
 
 # ---------- 2. Instalador (Inno Setup) ----------

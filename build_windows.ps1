@@ -35,9 +35,7 @@ if (-not (Test-Path (Join-Path $Src "assets\icon.ico") -PathType Leaf)) {
 }
 
 # ---- Version: obligatoria, leida de main.py (nunca un valor por defecto) ----
-$versionMatch = Select-String -Path (Join-Path $Src "main.py") -Pattern '^APP_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)"$'
-if (-not $versionMatch) { throw "No se pudo leer APP_VERSION (X.Y.Z) desde main.py" }
-$appVersion = $versionMatch.Matches[0].Groups[1].Value
+$appVersion = Get-AppVersion -MainPyPath (Join-Path $Src "main.py")
 
 # ---- Destino de build: validar identidad ANTES de cualquier limpieza ----
 $expectedDst = [System.IO.Path]::GetFullPath("C:\tiddl-gui")
@@ -98,10 +96,15 @@ if (-not (Test-VersionMatch -Exe $exeVersion -Want $appVersion)) {
     throw "Version del exe ('$exeVersion') no coincide con APP_VERSION ('$appVersion')."
 }
 
-# ---- Manifiesto de procedencia (version + pin del motor) junto al build, FUERA
-# de build\windows\ para no empaquetarlo; lo valida release.ps1 en -SkipGui ----
+# ---- Manifiesto de procedencia junto al build, FUERA de build\windows\ para no
+# empaquetarlo. Vincula el artefacto por SHA-256 (exe + main.py + requirements.txt)
+# mas version, pin del motor y commit fuente; lo valida release.ps1 en -SkipGui ----
 $enginePin = Get-EnginePin -RequirementsPath (Join-Path $Dst "requirements.txt")
-Write-Provenance -ManifestPath (Join-Path $Dst "build\provenance.json") -Version $appVersion -EnginePin $enginePin
+$srcCommit = (& git -C $Src rev-parse HEAD 2>$null); if (-not $srcCommit) { $srcCommit = 'unknown' }
+Write-Provenance -ManifestPath (Join-Path $Dst "build\provenance.json") `
+    -Version $appVersion -EnginePin $enginePin -ExePath $exe `
+    -MainPyPath (Join-Path $Src "main.py") -RequirementsPath (Join-Path $Src "requirements.txt") `
+    -SourceCommit $srcCommit
 
 Write-Host ""
-Write-Host "BUILD OK -> $exe  (exe='$exeVersion', APP_VERSION=$appVersion, motor=$enginePin)" -ForegroundColor Green
+Write-Host "BUILD OK -> $exe  (exe='$exeVersion', APP_VERSION=$appVersion, motor=$enginePin, commit=$srcCommit)" -ForegroundColor Green

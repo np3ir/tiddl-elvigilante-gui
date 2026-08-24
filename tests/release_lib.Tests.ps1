@@ -40,16 +40,39 @@ Assert-True (-not (Test-VersionMatch -Exe '1.0.16'   -Want '1.0.22')) "1.0.16 !=
 Assert-True (Test-VersionMatch -Exe '1.0.22'   -Want '1.0.22') "1.0.22 == 1.0.22"
 Assert-True (Test-VersionMatch -Exe '1.0.22.0' -Want '1.0.22') "1.0.22.0 == 1.0.22"
 
-Write-Host "-- 4. procedencia incompatible (-SkipGui) --"
+Write-Host "-- 4. procedencia vinculada por SHA-256 (-SkipGui) --"
 $pdir = Join-Path ([System.IO.Path]::GetTempPath()) ("prov_" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $pdir | Out-Null
+$exe = Join-Path $pdir 'tiddl-gui.exe';    Set-Content -LiteralPath $exe -Value 'BINARIO-v1' -NoNewline
+$mpy = Join-Path $pdir 'main.py';          Set-Content -LiteralPath $mpy -Value 'APP_VERSION = "1.0.22"' -NoNewline
+$req = Join-Path $pdir 'requirements.txt'; Set-Content -LiteralPath $req -Value 'tiddl-elvigilante @ ...git@849105e' -NoNewline
 $man = Join-Path $pdir 'provenance.json'
-Write-Provenance -ManifestPath $man -Version '1.0.22' -EnginePin '849105e'
-Assert-Throws { Assert-Provenance -ManifestPath $man -Version '1.0.22' -EnginePin 'deadbee' } "pin de motor distinto -> rechazado"
-Assert-Throws { Assert-Provenance -ManifestPath $man -Version '1.0.23' -EnginePin '849105e' } "version de manifiesto distinta -> rechazada"
-Assert-Throws { Assert-Provenance -ManifestPath (Join-Path $pdir 'nope.json') -Version '1.0.22' -EnginePin '849105e' } "manifiesto ausente -> rechazado"
-Assert-NoThrow { Assert-Provenance -ManifestPath $man -Version '1.0.22' -EnginePin '849105e' } "procedencia compatible -> aceptada"
+Write-Provenance -ManifestPath $man -Version '1.0.22' -EnginePin '849105e' -ExePath $exe -MainPyPath $mpy -RequirementsPath $req -SourceCommit 'abc123'
+
+Assert-NoThrow { Assert-Provenance -ManifestPath $man -Version '1.0.22' -EnginePin '849105e' -ExePath $exe -MainPyPath $mpy -RequirementsPath $req } "procedencia compatible -> aceptada"
+Assert-Throws  { Assert-Provenance -ManifestPath $man -Version '1.0.22' -EnginePin 'deadbee' -ExePath $exe -MainPyPath $mpy -RequirementsPath $req } "pin de motor distinto -> rechazado"
+Assert-Throws  { Assert-Provenance -ManifestPath $man -Version '1.0.23' -EnginePin '849105e' -ExePath $exe -MainPyPath $mpy -RequirementsPath $req } "version distinta -> rechazada"
+Assert-Throws  { Assert-Provenance -ManifestPath (Join-Path $pdir 'nope.json') -Version '1.0.22' -EnginePin '849105e' -ExePath $exe -MainPyPath $mpy -RequirementsPath $req } "manifiesto ausente -> rechazado"
+Set-Content -LiteralPath $exe -Value 'BINARIO-v2-CAMBIADO' -NoNewline
+Assert-Throws  { Assert-Provenance -ManifestPath $man -Version '1.0.22' -EnginePin '849105e' -ExePath $exe -MainPyPath $mpy -RequirementsPath $req } "exe con SHA-256 distinto -> rechazado"
+Set-Content -LiteralPath $exe -Value 'BINARIO-v1' -NoNewline
+Set-Content -LiteralPath $mpy -Value 'APP_VERSION = "1.0.22"  # editado' -NoNewline
+Assert-Throws  { Assert-Provenance -ManifestPath $man -Version '1.0.22' -EnginePin '849105e' -ExePath $exe -MainPyPath $mpy -RequirementsPath $req } "main.py con SHA-256 distinto -> rechazado"
+Set-Content -LiteralPath $mpy -Value 'APP_VERSION = "1.0.22"' -NoNewline
+Set-Content -LiteralPath $req -Value 'tiddl-elvigilante @ ...git@OTROPIN' -NoNewline
+Assert-Throws  { Assert-Provenance -ManifestPath $man -Version '1.0.22' -EnginePin '849105e' -ExePath $exe -MainPyPath $mpy -RequirementsPath $req } "requirements.txt con SHA-256 distinto -> rechazado"
 Remove-Item -Recurse -Force $pdir
+
+Write-Host "-- 5. version externa vs interna (release.ps1 -Version == APP_VERSION) --"
+$vdir = Join-Path ([System.IO.Path]::GetTempPath()) ("ver_" + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force $vdir | Out-Null
+$mp = Join-Path $vdir 'main.py'; Set-Content -LiteralPath $mp -Value 'APP_VERSION = "1.0.22"'
+Assert-True ((Get-AppVersion -MainPyPath $mp) -eq '1.0.22') "Get-AppVersion lee APP_VERSION"
+Assert-Throws { Get-AppVersion -MainPyPath (Join-Path $vdir 'nope.py') } "main.py ausente -> lanza"
+Assert-True ((Resolve-ReleaseVersion -Requested '' -AppVersion '1.0.22') -eq '1.0.22') "sin -Version -> usa APP_VERSION"
+Assert-True ((Resolve-ReleaseVersion -Requested '1.0.22' -AppVersion '1.0.22') -eq '1.0.22') "-Version == APP_VERSION -> ok"
+Assert-Throws { Resolve-ReleaseVersion -Requested '1.0.99' -AppVersion '1.0.22' } "-Version != APP_VERSION -> rechazado (externa contradice interna)"
+Remove-Item -Recurse -Force $vdir
 
 Write-Host ""
 if ($script:fail -gt 0) { Write-Host "$($script:fail) prueba(s) FAIL" -ForegroundColor Red; exit 1 }

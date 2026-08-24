@@ -80,6 +80,36 @@ function Test-VersionMatch {
     return $true
 }
 
+# Lee APP_VERSION (X.Y.Z) de main.py.
+function Get-AppVersion {
+    param([Parameter(Mandatory)][string]$MainPyPath)
+    if (-not (Test-Path -LiteralPath $MainPyPath -PathType Leaf)) { throw "No existe main.py: '$MainPyPath'." }
+    $m = Select-String -Path $MainPyPath -Pattern '^APP_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)"$'
+    if (-not $m) { throw "No se pudo leer APP_VERSION (X.Y.Z) de '$MainPyPath'." }
+    return $m.Matches[0].Groups[1].Value
+}
+
+# Version a usar en el release: si se pidio una explicita, DEBE coincidir con
+# APP_VERSION de main.py (la version externa del exe no puede contradecir la
+# interna de la app). Sin pedido -> se usa APP_VERSION.
+function Resolve-ReleaseVersion {
+    param([string]$Requested, [Parameter(Mandatory)][string]$AppVersion)
+    if ($Requested) {
+        if ($Requested -ne $AppVersion) {
+            throw "La version pedida ('$Requested') no coincide con APP_VERSION de main.py ('$AppVersion'): la version externa del ejecutable no puede contradecir la interna de la app."
+        }
+        return $Requested
+    }
+    return $AppVersion
+}
+
+# SHA-256 (hex mayus) de un archivo.
+function Get-FileSha256 {
+    param([Parameter(Mandatory)][string]$Path)
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "No existe el archivo para hashear: '$Path'." }
+    return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
+}
+
 # Extrae el pin del motor (la ref tras '.git@') de requirements.txt.
 function Get-EnginePin {
     param([Parameter(Mandatory)][string]$RequirementsPath)
@@ -91,22 +121,38 @@ function Get-EnginePin {
     return $m.Matches[0].Groups[1].Value
 }
 
-# Escribe el manifiesto de procedencia junto al build (version + pin del motor).
+# Escribe el manifiesto de procedencia junto al build. Lo VINCULA al artefacto por
+# SHA-256 del ejecutable, main.py y requirements.txt, mas version, pin del motor y
+# commit fuente.
 function Write-Provenance {
     param([Parameter(Mandatory)][string]$ManifestPath,
           [Parameter(Mandatory)][string]$Version,
-          [Parameter(Mandatory)][string]$EnginePin)
-    [ordered]@{ version = $Version; engine_pin = $EnginePin } | ConvertTo-Json |
-        Set-Content -LiteralPath $ManifestPath -Encoding UTF8
+          [Parameter(Mandatory)][string]$EnginePin,
+          [Parameter(Mandatory)][string]$ExePath,
+          [Parameter(Mandatory)][string]$MainPyPath,
+          [Parameter(Mandatory)][string]$RequirementsPath,
+          [string]$SourceCommit = 'unknown')
+    [ordered]@{
+        version             = $Version
+        engine_pin          = $EnginePin
+        source_commit       = $SourceCommit
+        exe_sha256          = (Get-FileSha256 $ExePath)
+        main_py_sha256      = (Get-FileSha256 $MainPyPath)
+        requirements_sha256 = (Get-FileSha256 $RequirementsPath)
+    } | ConvertTo-Json | Set-Content -LiteralPath $ManifestPath -Encoding UTF8
 }
 
-# Valida (para -SkipGui) que el build reutilizado corresponde a la version pedida
-# Y al pin del motor actual; si no, aborta (evita empaquetar un binario viejo con
-# otro motor).
+# Valida (para -SkipGui) que el build reutilizado corresponde EXACTAMENTE al
+# artefacto y a la fuente actuales: version, pin del motor y SHA-256 del exe en
+# disco + del main.py / requirements.txt actuales. Cualquier discrepancia aborta
+# (evita empaquetar un binario viejo o construido con otra fuente/motor).
 function Assert-Provenance {
     param([Parameter(Mandatory)][string]$ManifestPath,
           [Parameter(Mandatory)][string]$Version,
-          [Parameter(Mandatory)][string]$EnginePin)
+          [Parameter(Mandatory)][string]$EnginePin,
+          [Parameter(Mandatory)][string]$ExePath,
+          [Parameter(Mandatory)][string]$MainPyPath,
+          [Parameter(Mandatory)][string]$RequirementsPath)
     if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) {
         throw "Sin manifiesto de procedencia ('$ManifestPath'): no se puede validar el build reutilizado. Rehaz el build (sin -SkipGui)."
     }
@@ -116,5 +162,14 @@ function Assert-Provenance {
     }
     if ($m.engine_pin -ne $EnginePin) {
         throw "El build reutilizado embebe el motor '$($m.engine_pin)', requirements.txt pide '$EnginePin'. Rehaz el build."
+    }
+    if ($m.exe_sha256 -ne (Get-FileSha256 $ExePath)) {
+        throw "El ejecutable reutilizado no coincide con el SHA-256 del manifiesto (binario cambiado/corrupto). Rehaz el build."
+    }
+    if ($m.main_py_sha256 -ne (Get-FileSha256 $MainPyPath)) {
+        throw "main.py cambio desde el build reutilizado (SHA-256 distinto). Rehaz el build."
+    }
+    if ($m.requirements_sha256 -ne (Get-FileSha256 $RequirementsPath)) {
+        throw "requirements.txt cambio desde el build reutilizado (SHA-256 distinto). Rehaz el build."
     }
 }

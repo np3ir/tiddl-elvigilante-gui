@@ -35,18 +35,18 @@ if [[ ! -f main.py || ! -f requirements.txt ]]; then
   exit 1
 fi
 
-# ---- Version: arg 1, o APP_VERSION de main.py; NUNCA un default silencioso ----
-if [[ -n "${1:-}" ]]; then
-  VERSION="$1"
-else
-  VERSION="$(grep -oE '^APP_VERSION = "[0-9]+\.[0-9]+\.[0-9]+"' main.py | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)"
-  if [[ -z "$VERSION" ]]; then
-    echo "ERROR: sin argumento de version y no se pudo leer APP_VERSION (X.Y.Z) de main.py." >&2
-    echo "Uso: ./release_macos.sh <X.Y.Z>" >&2
-    exit 1
-  fi
-  echo "Version tomada de main.py: $VERSION"
+# ---- Version: SIEMPRE APP_VERSION de main.py; si se paso un arg, DEBE coincidir
+# (la version externa del binario no puede contradecir la interna de la app) ----
+APP_VERSION="$(grep -oE '^APP_VERSION = "[0-9]+\.[0-9]+\.[0-9]+"' main.py | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)"
+if [[ -z "$APP_VERSION" ]]; then
+  echo "ERROR: no se pudo leer APP_VERSION (X.Y.Z) de main.py." >&2
+  exit 1
 fi
+if [[ -n "${1:-}" && "$1" != "$APP_VERSION" ]]; then
+  echo "ERROR: la version pedida ('$1') no coincide con APP_VERSION de main.py ('$APP_VERSION')." >&2
+  exit 1
+fi
+VERSION="$APP_VERSION"
 if ! valid_semver "$VERSION"; then
   echo "ERROR: version invalida '$VERSION' (esperado X.Y.Z)." >&2
   exit 1
