@@ -19,14 +19,19 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. "$PSScriptRoot\release_lib.ps1"
 
 # ---- Fuente: el workspace real, validado (no una ruta hardcodeada/stale) ----
 if (-not $Src) { throw "No se pudo determinar la carpeta fuente. Pasa -Src <repo tiddl-gui>." }
 $Src = [System.IO.Path]::GetFullPath($Src)
 foreach ($f in @("main.py", "requirements.txt")) {
-    if (-not (Test-Path (Join-Path $Src $f))) {
+    if (-not (Test-Path (Join-Path $Src $f) -PathType Leaf)) {
         throw "Fuente invalida: falta '$f' en '$Src'. Pasa -Src <carpeta del repo tiddl-gui>."
     }
+}
+# Validacion anticipada del icono (lo usan la app y el instalador).
+if (-not (Test-Path (Join-Path $Src "assets\icon.ico") -PathType Leaf)) {
+    throw "Falta 'assets\icon.ico' en '$Src' (requerido para el icono de la app / instalador)."
 }
 
 # ---- Version: obligatoria, leida de main.py (nunca un valor por defecto) ----
@@ -40,18 +45,19 @@ $resolvedDst = [System.IO.Path]::GetFullPath($Dst)
 if ($resolvedDst -ne $expectedDst) {
     throw "Destino de build inesperado: '$resolvedDst' (esperado '$expectedDst'). Abortado por seguridad."
 }
-if ($resolvedDst -eq $Src) {
-    throw "El destino de build no puede ser la carpeta fuente ('$Src')."
-}
+# Canonico: rechazar que la fuente sea igual o descendiente del staging
+# (limpiar el staging borraria el repo).
+Assert-SourceNotUnderStaging -Source $Src -Staging $Dst
 New-Item -ItemType Directory -Force $Dst | Out-Null
 
 # ---- Staging limpio: flet EMPAQUETA todo lo que haya en la carpeta del ----
 # proyecto, asi que $Dst debe contener SOLO main.py, requirements.txt y assets.
 # Se borra cualquier otro resto de builds anteriores (menos build\, que se
-# regenera abajo) para no arrastrarlo al instalable.
+# regenera abajo) para no arrastrarlo al instalable. Fallo explicito si algo
+# no se puede borrar (no SilentlyContinue).
 Get-ChildItem $Dst -Force | Where-Object {
     $_.Name -ne "build" -and $_.Name -notin @("main.py", "requirements.txt", "assets")
-} | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+} | Remove-Item -Recurse -Force -ErrorAction Stop
 
 # ---- Sincronizacion explicita de fuentes + assets ----
 Copy-Item (Join-Path $Src "main.py") $Dst -Force
@@ -68,8 +74,9 @@ if (Test-Path $srcAssets) {
     Write-Warning "No hay carpeta assets/ en '$Src' — el icono de la app puede faltar."
 }
 
-# ---- Limpia el build anterior para reempaquetar desde cero ----
-Remove-Item -Recurse -Force (Join-Path $Dst "build") -ErrorAction SilentlyContinue
+# ---- Elimina el build anterior OBLIGATORIAMENTE antes de Flet (falla si no
+# se puede) para garantizar que se reempaqueta el main.py / pin nuevos ----
+Remove-DirStrict -Path (Join-Path $Dst "build") -What 'el build anterior'
 
 # Flutter y el pub-cache (con serious_python parcheado) viven bajo C:\fb.
 # No se sobrescriben HOME/USERPROFILE: el código fuente ya se copia a una ruta
@@ -85,17 +92,16 @@ $exe = Join-Path $Dst "build\windows\tiddl-gui.exe"
 if (-not (Test-Path $exe -PathType Leaf)) { throw "flet build fallo: no existe el ejecutable '$exe'." }
 $exeVersion = (Get-Item $exe).VersionInfo.ProductVersion
 if (-not $exeVersion) { $exeVersion = (Get-Item $exe).VersionInfo.FileVersion }
-if ($exeVersion) {
-    # Comparacion EXACTA por componente (no por prefijo): '1.0.2' no debe pasar
-    # por '1.0.22'. Se admite un 4o componente de build solo si es 0.
-    $exeParts = (($exeVersion -replace '[^0-9.]', '').Trim('.')) -split '\.'
-    $wantParts = $appVersion -split '\.'
-    $mismatch = $false
-    for ($i = 0; $i -lt 3; $i++) { if ($exeParts[$i] -ne $wantParts[$i]) { $mismatch = $true } }
-    if ($exeParts.Count -ge 4 -and $exeParts[3] -ne '0') { $mismatch = $true }
-    if ($mismatch) { throw "Version del exe ('$exeVersion') no coincide con APP_VERSION ('$appVersion')." }
-} else {
-    Write-Warning "El exe no expone version — no se pudo verificar contra APP_VERSION ('$appVersion')."
+# El exe DEBE exponer metadatos de version; si no, no se puede verificar -> fallo.
+if (-not $exeVersion) { throw "El exe '$exe' no expone metadatos de version; no se puede verificar contra APP_VERSION ('$appVersion')." }
+if (-not (Test-VersionMatch -Exe $exeVersion -Want $appVersion)) {
+    throw "Version del exe ('$exeVersion') no coincide con APP_VERSION ('$appVersion')."
 }
+
+# ---- Manifiesto de procedencia (version + pin del motor) junto al build, FUERA
+# de build\windows\ para no empaquetarlo; lo valida release.ps1 en -SkipGui ----
+$enginePin = Get-EnginePin -RequirementsPath (Join-Path $Dst "requirements.txt")
+Write-Provenance -ManifestPath (Join-Path $Dst "build\provenance.json") -Version $appVersion -EnginePin $enginePin
+
 Write-Host ""
-Write-Host "BUILD OK -> $exe  (exe='$exeVersion', APP_VERSION=$appVersion)" -ForegroundColor Green
+Write-Host "BUILD OK -> $exe  (exe='$exeVersion', APP_VERSION=$appVersion, motor=$enginePin)" -ForegroundColor Green

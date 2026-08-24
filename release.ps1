@@ -23,6 +23,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. "$PSScriptRoot\release_lib.ps1"
 
 # $Src = carpeta con main.py + requirements.txt + assets (fuente real de la GUI).
 # Por defecto es la carpeta de este script; validada para no depender de una
@@ -30,9 +31,13 @@ $ErrorActionPreference = "Stop"
 if (-not $Src) { throw "No se pudo determinar la carpeta fuente. Pasa -Src <repo tiddl-gui>." }
 $Src = [System.IO.Path]::GetFullPath($Src)
 foreach ($f in @("main.py", "requirements.txt")) {
-    if (-not (Test-Path (Join-Path $Src $f))) {
+    if (-not (Test-Path (Join-Path $Src $f) -PathType Leaf)) {
         throw "Fuente invalida: falta '$f' en '$Src'. Pasa -Src <carpeta del repo tiddl-gui>."
     }
+}
+# Validacion anticipada del icono del instalador (installer.iss lo exige).
+if (-not (Test-Path (Join-Path $Src "assets\icon.ico") -PathType Leaf)) {
+    throw "Falta 'assets\icon.ico' en '$Src' (requerido por installer.iss)."
 }
 
 $work = "C:\tiddl-gui"
@@ -54,13 +59,14 @@ if (-not $SkipGui) {
     $expectedWork = [System.IO.Path]::GetFullPath("C:\tiddl-gui")
     $resolvedWork = [System.IO.Path]::GetFullPath($work)
     if ($resolvedWork -ne $expectedWork) { throw "Staging inesperado: '$resolvedWork'. Abortado por seguridad." }
-    if ($resolvedWork -eq $Src) { throw "El staging no puede ser la carpeta fuente ('$Src')." }
+    # Canonico: rechazar que la fuente sea igual o descendiente del staging.
+    Assert-SourceNotUnderStaging -Source $Src -Staging $work
     New-Item -ItemType Directory -Force $work | Out-Null
 
     # La carpeta del proyecto debe quedar limpia: flet build empaqueta todo lo
-    # que encuentre en ella (excepto build\).
+    # que encuentre en ella (excepto build\). Fallo explicito si algo no se borra.
     Get-ChildItem $work -Force -Exclude build | Where-Object { $_.Name -notin "main.py", "requirements.txt", "assets" } |
-        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Recurse -Force -ErrorAction Stop
 
     # Sincronizacion explicita de fuentes + assets. Se borra SIEMPRE el assets
     # del staging antes de decidir (y se ABORTA si el borrado falla) para no
@@ -75,10 +81,24 @@ if (-not $SkipGui) {
         Write-Warning "No hay carpeta assets/ en '$Src' — el instalador espera assets\icon.ico."
     }
 
+    # Elimina el build anterior OBLIGATORIAMENTE antes de Flet (falla si no puede).
+    Remove-DirStrict -Path (Join-Path $work "build") -What 'el build anterior'
+
     Set-Location $work
     "y" | flet build windows --project tiddl-gui --product "tiddl by ElVigilante" `
         --company ElVigilante --build-version $Version
+
+    # Manifiesto de procedencia (version + pin del motor) para validar en -SkipGui.
+    Write-Provenance -ManifestPath (Join-Path $work "build\provenance.json") `
+        -Version $Version -EnginePin (Get-EnginePin -RequirementsPath (Join-Path $work "requirements.txt"))
 } else { Write-Host "[1/2] GUI: reusando build existente" -ForegroundColor Yellow }
+
+# Con -SkipGui: validar la procedencia del build reutilizado contra el pin actual
+# de requirements.txt (evita empaquetar un binario 1.0.22 con OTRO motor).
+if ($SkipGui) {
+    Assert-Provenance -ManifestPath (Join-Path $work "build\provenance.json") `
+        -Version $Version -EnginePin (Get-EnginePin -RequirementsPath (Join-Path $Src "requirements.txt"))
+}
 
 # Verificacion del ejecutable — SIEMPRE, incluso con -SkipGui: un instalador
 # etiquetado $Version no debe empaquetar un binario viejo que quedo en el staging.
@@ -86,14 +106,10 @@ $exe = "$work\build\windows\tiddl-gui.exe"
 if (-not (Test-Path $exe -PathType Leaf)) { throw "No existe el ejecutable de la GUI: $exe" }
 $exeVersion = (Get-Item $exe).VersionInfo.ProductVersion
 if (-not $exeVersion) { $exeVersion = (Get-Item $exe).VersionInfo.FileVersion }
-if (-not $exeVersion) { throw "No se pudo leer la version del exe '$exe' para verificar contra '$Version'." }
-# Comparacion EXACTA por componente (no por prefijo): '1.0.2' no debe pasar por '1.0.22'.
-$exeParts = (($exeVersion -replace '[^0-9.]', '').Trim('.')) -split '\.'
-$wantParts = $Version -split '\.'
-$mismatch = $false
-for ($i = 0; $i -lt 3; $i++) { if ($exeParts[$i] -ne $wantParts[$i]) { $mismatch = $true } }
-if ($exeParts.Count -ge 4 -and $exeParts[3] -ne '0') { $mismatch = $true }
-if ($mismatch) { throw "Version del exe ('$exeVersion') no coincide con la pedida ('$Version')." }
+if (-not $exeVersion) { throw "El exe '$exe' no expone metadatos de version; no se puede verificar contra '$Version'." }
+if (-not (Test-VersionMatch -Exe $exeVersion -Want $Version)) {
+    throw "Version del exe ('$exeVersion') no coincide con la pedida ('$Version')."
+}
 
 # ---------- 2. Instalador (Inno Setup) ----------
 # (tiddl ya no se compila aparte: flet build lo embebio via requirements.txt)
@@ -106,7 +122,7 @@ if (-not (Test-Path $iscc)) { throw "ISCC.exe no encontrado en $iscc" }
 if ($LASTEXITCODE -ne 0) { throw "ISCC fallo (exit $LASTEXITCODE)" }
 
 $setup = "$rel\installer\tiddl-ElVigilante-Setup-$Version.exe"
-if (-not (Test-Path $setup)) { throw "El instalador esperado no existe: $setup" }
+if (-not (Test-Path $setup -PathType Leaf)) { throw "El instalador esperado no existe (o no es un archivo): $setup" }
 $mb = [math]::Round((Get-Item $setup).Length / 1MB)
 Write-Host ""
 Write-Host "RELEASE OK -> $setup ($mb MB)" -ForegroundColor Green

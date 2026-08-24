@@ -20,6 +20,7 @@
 # (no se bundlea: el de las distros es dinamico y no viaja bien entre sistemas)
 
 set -euo pipefail
+. "$(dirname "$0")/release_lib.sh"
 
 # ---- Correr desde el repo (fuente real, no un default) ----
 if [[ ! -f main.py || ! -f requirements.txt ]]; then
@@ -39,7 +40,7 @@ else
   fi
   echo "Version tomada de main.py: $VERSION"
 fi
-if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+if ! valid_semver "$VERSION"; then
   echo "ERROR: version invalida '$VERSION' (esperado X.Y.Z)." >&2
   exit 1
 fi
@@ -51,17 +52,16 @@ echo "[1/3] GUI (flet build linux) — tiddl embebido via requirements.txt..."
 # pipefail eso abortaria el script aunque el build haya sido exitoso.
 WORKDIR="$HOME/.tiddl-gui-build"
 REPO_DIR="$(pwd -P)"
-# Guard: WORKDIR debe estar bajo $HOME y NUNCA coincidir con el repo (si el repo
-# estuviera en $HOME/.tiddl-gui-build, el rm -rf borraria el checkout).
+# Guard: WORKDIR bajo $HOME, y el repo NUNCA igual o dentro del staging (canonico:
+# si el repo estuviera en $HOME/.tiddl-gui-build[/...], el rm -rf lo borraria).
 if [[ -z "${HOME:-}" || "$WORKDIR" != "$HOME/.tiddl-gui-build" ]]; then
   echo "ERROR: WORKDIR inseguro ('$WORKDIR') — abortado antes de borrar." >&2
   exit 1
 fi
-if [[ "$WORKDIR" == "$REPO_DIR" ]]; then
-  echo "ERROR: WORKDIR coincide con el repo ('$REPO_DIR') — abortado para no borrarlo." >&2
-  exit 1
-fi
-rm -rf "$WORKDIR" && mkdir -p "$WORKDIR"
+assert_source_not_under_staging "$REPO_DIR" "$WORKDIR" || exit 1
+# Limpieza estricta (falla si el dir sigue existiendo) + staging limpio.
+remove_dir_strict "$WORKDIR" || exit 1
+mkdir -p "$WORKDIR"
 cp main.py requirements.txt "$WORKDIR/"
 # Sincronizacion explicita de assets (no silenciosa).
 if [[ -d assets ]]; then
