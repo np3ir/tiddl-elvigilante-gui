@@ -6,8 +6,11 @@
 ; Ya NO se compila un tiddl.exe aparte: tiddl viaja dentro del app (ver requirements.txt).
 
 #define MyAppName "tiddl by ElVigilante"
+; La version es OBLIGATORIA por linea de comandos: nunca un valor por defecto
+; silencioso (antes caia a 1.0.16 y producia un instalable con version erronea).
+;   ISCC.exe /DMyAppVersion=1.0.22 installer.iss
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0.16"
+  #error MyAppVersion no fue definido. Compila con: ISCC /DMyAppVersion=X.Y.Z installer.iss
 #endif
 #define MyAppPublisher "ElVigilante"
 #define MyAppURL "https://github.com/np3ir/tiddl-elvigilante"

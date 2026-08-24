@@ -23,4 +23,4 @@
     disco (calidad, calidad de video, audio-mode, edition-match, quality-policy, hires-client, plantillas de
     nombres, metadata embebida, carátula suelta, m3u, ruta de video) — cambiar cualquiera arranca un resume
     limpio en vez de saltar recursos hechos con los ajustes viejos.
-- **Texto del checkbox Resume:** ahora dice que salta **items** ya hechos (cualquier recurso), no solo artistas.
+- **Texto del checkbox Resume:** ahora dice que salta **recursos** ya hechos, no solo artistas.

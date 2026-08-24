@@ -1,7 +1,8 @@
 # Release de tiddl by ElVigilante: GUI binario unico + instalador.
 #
-#   .\release.ps1                      # release completo
-#   .\release.ps1 -Version 1.1.0       # nueva version
+#   .\release.ps1                      # release completo (fuente = carpeta del script)
+#   .\release.ps1 -Version 1.1.0       # forzar version
+#   .\release.ps1 -Src D:\repos\tiddl-gui   # otra copia del repo
 #   .\release.ps1 -SkipGui             # reusar el build de GUI existente
 #
 # Resultado: C:\tiddl-release\installer\tiddl-ElVigilante-Setup-<version>.exe
@@ -14,39 +15,73 @@
 # - tiddl ya NO se compila aparte con PyInstaller: viaja embebido en el app
 #   porque requirements.txt lo declara como dependencia git (binario unico).
 
+[CmdletBinding()]
 param(
     [string]$Version = "",
+    [string]$Src = $PSScriptRoot,
     [switch]$SkipGui
 )
 
 $ErrorActionPreference = "Stop"
-# $src = carpeta con main.py + requirements.txt + assets (fuente de la GUI).
-$src  = "C:\!z\home\tiddl-flet"
+
+# $Src = carpeta con main.py + requirements.txt + assets (fuente real de la GUI).
+# Por defecto es la carpeta de este script; validada para no depender de una
+# ruta hardcodeada que ya no existe.
+if (-not $Src) { throw "No se pudo determinar la carpeta fuente. Pasa -Src <repo tiddl-gui>." }
+$Src = [System.IO.Path]::GetFullPath($Src)
+foreach ($f in @("main.py", "requirements.txt")) {
+    if (-not (Test-Path (Join-Path $Src $f))) {
+        throw "Fuente invalida: falta '$f' en '$Src'. Pasa -Src <carpeta del repo tiddl-gui>."
+    }
+}
+
 $work = "C:\tiddl-gui"
 $rel  = "C:\tiddl-release"
 $iscc = "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
 
 if (-not $Version) {
-    $versionMatch = Select-String -Path "$src\main.py" -Pattern '^APP_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)"$'
+    $versionMatch = Select-String -Path (Join-Path $Src "main.py") -Pattern '^APP_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)"$'
     if (-not $versionMatch) { throw "No se pudo leer APP_VERSION desde main.py" }
     $Version = $versionMatch.Matches[0].Groups[1].Value
 }
+if ($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$') { throw "Version invalida: '$Version' (esperado X.Y.Z)." }
 
 # ---------- 1. GUI (flet build) ----------
 if (-not $SkipGui) {
     Write-Host "[1/2] Compilando GUI (flet build windows)..." -ForegroundColor Cyan
+
+    # Guard: validar la identidad de $work ANTES de cualquier limpieza destructiva.
+    $expectedWork = [System.IO.Path]::GetFullPath("C:\tiddl-gui")
+    $resolvedWork = [System.IO.Path]::GetFullPath($work)
+    if ($resolvedWork -ne $expectedWork) { throw "Staging inesperado: '$resolvedWork'. Abortado por seguridad." }
+    if ($resolvedWork -eq $Src) { throw "El staging no puede ser la carpeta fuente ('$Src')." }
     New-Item -ItemType Directory -Force $work | Out-Null
+
     # La carpeta del proyecto debe quedar limpia: flet build empaqueta todo lo
     # que encuentre en ella (excepto build\).
-    Get-ChildItem $work -Exclude build | Where-Object { $_.Name -notin "main.py", "requirements.txt", "assets" } |
+    Get-ChildItem $work -Force -Exclude build | Where-Object { $_.Name -notin "main.py", "requirements.txt", "assets" } |
         Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-    Copy-Item "$src\main.py", "$src\requirements.txt" $work -Force
-    Copy-Item "$src\assets" $work -Recurse -Force
+
+    # Sincronizacion explicita de fuentes + assets.
+    Copy-Item (Join-Path $Src "main.py"), (Join-Path $Src "requirements.txt") $work -Force
+    $srcAssets = Join-Path $Src "assets"
+    if (Test-Path $srcAssets) {
+        Remove-Item -Recurse -Force (Join-Path $work "assets") -ErrorAction SilentlyContinue
+        Copy-Item $srcAssets $work -Recurse -Force
+    } else {
+        Write-Warning "No hay carpeta assets/ en '$Src' — el instalador espera assets\icon.ico."
+    }
+
     Set-Location $work
     "y" | flet build windows --project tiddl-gui --product "tiddl by ElVigilante" `
         --company ElVigilante --build-version $Version
-    if (-not (Test-Path "$work\build\windows\tiddl-gui.exe")) {
-        throw "flet build fallo: no existe $work\build\windows\tiddl-gui.exe"
+    $exe = "$work\build\windows\tiddl-gui.exe"
+    if (-not (Test-Path $exe)) { throw "flet build fallo: no existe $exe" }
+    # Verificacion posterior de version.
+    $exeVersion = (Get-Item $exe).VersionInfo.ProductVersion
+    if (-not $exeVersion) { $exeVersion = (Get-Item $exe).VersionInfo.FileVersion }
+    if ($exeVersion -and ((($exeVersion -replace '[^0-9.]', '').TrimEnd('.')) -notlike "$Version*")) {
+        throw "Version del exe ('$exeVersion') no coincide con la pedida ('$Version')."
     }
 } else { Write-Host "[1/2] GUI: reusando build existente" -ForegroundColor Yellow }
 
@@ -55,10 +90,13 @@ if (-not $SkipGui) {
 Write-Host "[2/2] Compilando instalador (Inno Setup)..." -ForegroundColor Cyan
 if (-not (Test-Path "C:\ffmpeg\bin\ffmpeg.exe")) { throw "ffmpeg no encontrado en C:\ffmpeg\bin" }
 if (-not (Test-Path $iscc)) { throw "ISCC.exe no encontrado en $iscc" }
-& $iscc "/DMyAppVersion=$Version" "$src\installer.iss"
+# /DMyAppVersion es obligatorio: installer.iss ahora ABORTA si no se define
+# (ya no cae silenciosamente a una version por defecto).
+& $iscc "/DMyAppVersion=$Version" (Join-Path $Src "installer.iss")
 if ($LASTEXITCODE -ne 0) { throw "ISCC fallo (exit $LASTEXITCODE)" }
 
 $setup = "$rel\installer\tiddl-ElVigilante-Setup-$Version.exe"
+if (-not (Test-Path $setup)) { throw "El instalador esperado no existe: $setup" }
 $mb = [math]::Round((Get-Item $setup).Length / 1MB)
 Write-Host ""
 Write-Host "RELEASE OK -> $setup ($mb MB)" -ForegroundColor Green
