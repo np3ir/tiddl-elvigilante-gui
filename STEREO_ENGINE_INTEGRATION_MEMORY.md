@@ -14,6 +14,10 @@ Authoritative technical state is recorded in its
 - `requirements.txt` pins the tested engine commit `a13230e6861a2c12018aa11f334b2b8c1519bb05`
   (was `862dec0…`; the newer revision adds the non-zero-exit-on-safety-stop and
   strict-Normal -> TIDAL `HIGH` fixes).
+- **CURRENT (GUI 1.0.22, 2026-08-23):** `requirements.txt` now pins engine **`849105e`** (release
+  **v1.5.2** — giant-run hardening: 429 breaker, bounded-memory pool, `--resume` checkpoint; quality
+  cascade with Atmos + FLAC-over-Atmos; and the v1.5.1/v1.5.2 `-q atmos` and resume-signature fixes).
+  The `a13230e` line above is the historical 1.0.16-era pin, kept for provenance.
 
 ## Rebuild required (2026-08-19)
 
