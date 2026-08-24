@@ -8,4 +8,4 @@ tomlkit>=0.13
 # normal > low, with `atmos` as a -q rung; prefers FLAC over the Atmos AAC that
 # TIDAL serves at the LOSSLESS tier), on top of stereo resolution, flexible/
 # strict quality policy, playback-manifest validation and the per-album resilience.
-tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@969ca7e
+tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@360c6e4

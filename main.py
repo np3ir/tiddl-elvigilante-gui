@@ -79,7 +79,7 @@ except ModuleNotFoundError:  # Python < 3.11
     tomllib = None
 
 # Bump this every release; the built installer version should match.
-APP_VERSION = "1.0.21"
+APP_VERSION = "1.0.22"
 GUI_REPO = "np3ir/tiddl-elvigilante-gui"
 RELEASES_URL = f"https://github.com/{GUI_REPO}/releases/latest"
 API_LATEST = f"https://api.github.com/repos/{GUI_REPO}/releases/latest"
@@ -279,7 +279,7 @@ STRINGS: dict[str, dict[str, str]] = {
             "Start at high/max to prefer FLAC; an Atmos track's only FLAC is 'max' "
             "(so 'high' falls to Atmos), and 'atmos' takes Dolby Atmos first."
         ),
-        "resume": "Resume (skip artists already done)",
+        "resume": "Resume (skip items already done)",
         "resume_tip": (
             "Skip whole resources completed in a prior run of this SAME job "
             "(same links + options) before any API call — cheap continuation of a "
@@ -502,7 +502,7 @@ STRINGS: dict[str, dict[str, str]] = {
             "Empieza en high/max para preferir FLAC; en una pista Atmos el único FLAC "
             "es 'max' (así 'high' cae a Atmos), y 'atmos' toma Dolby Atmos primero."
         ),
-        "resume": "Reanudar (saltar artistas ya hechos)",
+        "resume": "Reanudar (saltar recursos ya hechos)",
         "resume_tip": (
             "Salta recursos completados en una corrida previa del MISMO trabajo "
             "(mismos enlaces + opciones) antes de llamar a la API — continuación barata "
