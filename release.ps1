@@ -62,11 +62,14 @@ if (-not $SkipGui) {
     Get-ChildItem $work -Force -Exclude build | Where-Object { $_.Name -notin "main.py", "requirements.txt", "assets" } |
         Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
-    # Sincronizacion explicita de fuentes + assets.
+    # Sincronizacion explicita de fuentes + assets. Se borra SIEMPRE el assets
+    # del staging antes de decidir (y se ABORTA si el borrado falla) para no
+    # arrastrar assets viejos cuando la fuente actual no tiene assets.
     Copy-Item (Join-Path $Src "main.py"), (Join-Path $Src "requirements.txt") $work -Force
     $srcAssets = Join-Path $Src "assets"
+    $dstAssets = Join-Path $work "assets"
+    if (Test-Path $dstAssets) { Remove-Item -Recurse -Force $dstAssets -ErrorAction Stop }
     if (Test-Path $srcAssets) {
-        Remove-Item -Recurse -Force (Join-Path $work "assets") -ErrorAction SilentlyContinue
         Copy-Item $srcAssets $work -Recurse -Force
     } else {
         Write-Warning "No hay carpeta assets/ en '$Src' — el instalador espera assets\icon.ico."
@@ -75,15 +78,22 @@ if (-not $SkipGui) {
     Set-Location $work
     "y" | flet build windows --project tiddl-gui --product "tiddl by ElVigilante" `
         --company ElVigilante --build-version $Version
-    $exe = "$work\build\windows\tiddl-gui.exe"
-    if (-not (Test-Path $exe)) { throw "flet build fallo: no existe $exe" }
-    # Verificacion posterior de version.
-    $exeVersion = (Get-Item $exe).VersionInfo.ProductVersion
-    if (-not $exeVersion) { $exeVersion = (Get-Item $exe).VersionInfo.FileVersion }
-    if ($exeVersion -and ((($exeVersion -replace '[^0-9.]', '').TrimEnd('.')) -notlike "$Version*")) {
-        throw "Version del exe ('$exeVersion') no coincide con la pedida ('$Version')."
-    }
 } else { Write-Host "[1/2] GUI: reusando build existente" -ForegroundColor Yellow }
+
+# Verificacion del ejecutable — SIEMPRE, incluso con -SkipGui: un instalador
+# etiquetado $Version no debe empaquetar un binario viejo que quedo en el staging.
+$exe = "$work\build\windows\tiddl-gui.exe"
+if (-not (Test-Path $exe -PathType Leaf)) { throw "No existe el ejecutable de la GUI: $exe" }
+$exeVersion = (Get-Item $exe).VersionInfo.ProductVersion
+if (-not $exeVersion) { $exeVersion = (Get-Item $exe).VersionInfo.FileVersion }
+if (-not $exeVersion) { throw "No se pudo leer la version del exe '$exe' para verificar contra '$Version'." }
+# Comparacion EXACTA por componente (no por prefijo): '1.0.2' no debe pasar por '1.0.22'.
+$exeParts = (($exeVersion -replace '[^0-9.]', '').Trim('.')) -split '\.'
+$wantParts = $Version -split '\.'
+$mismatch = $false
+for ($i = 0; $i -lt 3; $i++) { if ($exeParts[$i] -ne $wantParts[$i]) { $mismatch = $true } }
+if ($exeParts.Count -ge 4 -and $exeParts[3] -ne '0') { $mismatch = $true }
+if ($mismatch) { throw "Version del exe ('$exeVersion') no coincide con la pedida ('$Version')." }
 
 # ---------- 2. Instalador (Inno Setup) ----------
 # (tiddl ya no se compila aparte: flet build lo embebio via requirements.txt)

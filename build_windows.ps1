@@ -57,10 +57,13 @@ Get-ChildItem $Dst -Force | Where-Object {
 Copy-Item (Join-Path $Src "main.py") $Dst -Force
 Copy-Item (Join-Path $Src "requirements.txt") $Dst -Force
 $srcAssets = Join-Path $Src "assets"
+$dstAssets = Join-Path $Dst "assets"
+# Borrar SIEMPRE el assets del staging antes de decidir (y ABORTAR si el borrado
+# falla): asi un build cuya fuente no tiene assets no arrastra los de otra fuente.
+if (Test-Path $dstAssets) { Remove-Item -Recurse -Force $dstAssets -ErrorAction Stop }
 if (Test-Path $srcAssets) {
-    Remove-Item -Recurse -Force (Join-Path $Dst "assets") -ErrorAction SilentlyContinue
     Copy-Item $srcAssets $Dst -Recurse -Force
-    Write-Host "assets/ sincronizado a $Dst\assets" -ForegroundColor DarkGray
+    Write-Host "assets/ sincronizado a $dstAssets" -ForegroundColor DarkGray
 } else {
     Write-Warning "No hay carpeta assets/ en '$Src' — el icono de la app puede faltar."
 }
@@ -79,14 +82,18 @@ Set-Location $Dst
 
 # ---- Verificacion posterior: existe el exe y su version coincide ----
 $exe = Join-Path $Dst "build\windows\tiddl-gui.exe"
-if (-not (Test-Path $exe)) { throw "flet build fallo: no existe '$exe'." }
+if (-not (Test-Path $exe -PathType Leaf)) { throw "flet build fallo: no existe el ejecutable '$exe'." }
 $exeVersion = (Get-Item $exe).VersionInfo.ProductVersion
 if (-not $exeVersion) { $exeVersion = (Get-Item $exe).VersionInfo.FileVersion }
 if ($exeVersion) {
-    $exeVersionNorm = ($exeVersion -replace '[^0-9.]', '').TrimEnd('.')
-    if ($exeVersionNorm -notlike "$appVersion*") {
-        throw "Version del exe ('$exeVersion') no coincide con APP_VERSION ('$appVersion')."
-    }
+    # Comparacion EXACTA por componente (no por prefijo): '1.0.2' no debe pasar
+    # por '1.0.22'. Se admite un 4o componente de build solo si es 0.
+    $exeParts = (($exeVersion -replace '[^0-9.]', '').Trim('.')) -split '\.'
+    $wantParts = $appVersion -split '\.'
+    $mismatch = $false
+    for ($i = 0; $i -lt 3; $i++) { if ($exeParts[$i] -ne $wantParts[$i]) { $mismatch = $true } }
+    if ($exeParts.Count -ge 4 -and $exeParts[3] -ne '0') { $mismatch = $true }
+    if ($mismatch) { throw "Version del exe ('$exeVersion') no coincide con APP_VERSION ('$appVersion')." }
 } else {
     Write-Warning "El exe no expone version — no se pudo verificar contra APP_VERSION ('$appVersion')."
 }

@@ -57,9 +57,15 @@ echo "[1/3] GUI (flet build macos) — tiddl embebido via requirements.txt..."
 # echo (no `yes`): cuando flet termina, `yes` muere por SIGPIPE (141) y con
 # pipefail eso abortaria el script aunque el build haya sido exitoso.
 WORKDIR="$HOME/.tiddl-gui-build"
-# Guard: no borrar nada si WORKDIR no es la ruta esperada bajo $HOME.
+REPO_DIR="$(pwd -P)"
+# Guard: WORKDIR debe estar bajo $HOME y NUNCA coincidir con el repo (si el repo
+# estuviera en $HOME/.tiddl-gui-build, el rm -rf borraria el checkout).
 if [[ -z "${HOME:-}" || "$WORKDIR" != "$HOME/.tiddl-gui-build" ]]; then
   echo "ERROR: WORKDIR inseguro ('$WORKDIR') — abortado antes de borrar." >&2
+  exit 1
+fi
+if [[ "$WORKDIR" == "$REPO_DIR" ]]; then
+  echo "ERROR: WORKDIR coincide con el repo ('$REPO_DIR') — abortado para no borrarlo." >&2
   exit 1
 fi
 rm -rf "$WORKDIR" && mkdir -p "$WORKDIR"
