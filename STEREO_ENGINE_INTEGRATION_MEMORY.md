@@ -11,10 +11,14 @@ Authoritative technical state is recorded in its
 - GUI 1.0.16 passes the selected audio edition and quality policy to the engine.
 - The new controls, catalog-only verification action, fatal-stop handling and
   responsive layout are implemented and covered by the release audit below.
-- **CURRENT (GUI 1.0.22, 2026-08-23):** `requirements.txt` pins engine **`849105e`** (release
-  **v1.5.2** — giant-run hardening: 429 breaker, bounded-memory pool, `--resume` checkpoint; quality
-  cascade with Atmos + FLAC-over-Atmos; and the v1.5.1/v1.5.2 `-q atmos` and resume-signature fixes).
-  This is the authoritative engine pin the GUI is built and validated against.
+- **CURRENT (GUI 1.0.22, engine bump 2026-08-25):** `requirements.txt` pins engine
+  **`3f80152d26f7b3fefbd5b3de077cbd4775648f0e`** (release **v1.5.3** — the host-safe cooperative stop:
+  Cancel / rate-limit 429 / account-flagged 401 raise `click.exceptions.Exit` instead of `sys.exit()`, so
+  the in-process engine no longer hard-kills this GUI on a stop; `run_tiddl` catches it and returns the exit
+  code). v1.5.3 also carries the earlier v1.5.0–v1.5.2 work: giant-run hardening (429 breaker,
+  bounded-memory pool, `--resume` checkpoint), the quality cascade with Atmos + FLAC-over-Atmos, and the
+  `-q atmos` and resume-signature fixes. This is the authoritative engine pin the GUI is built and validated
+  against.
 - _(historical, do not use for reproduction)_ GUI 1.0.16 pinned engine
   `a13230e6861a2c12018aa11f334b2b8c1519bb05` (itself succeeding `862dec0…`; that revision added the
   non-zero-exit-on-safety-stop and strict-Normal -> TIDAL `HIGH` fixes). Kept for provenance only.
