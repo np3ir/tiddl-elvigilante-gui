@@ -8,4 +8,8 @@ tomlkit>=0.13
 # normal > low, with `atmos` as a -q rung; prefers FLAC over the Atmos AAC that
 # TIDAL serves at the LOSSLESS tier), on top of stereo resolution, flexible/
 # strict quality policy, playback-manifest validation and the per-album resilience.
-tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@849105e
+# v1.5.3 adds the host-safe cooperative stop: Cancel / rate-limit (429) /
+# account-flagged (401) now raise click.exceptions.Exit instead of calling
+# sys.exit(), so the in-process engine can no longer hard-kill this GUI on a stop
+# (see run_tiddl, which catches it and returns the exit code).
+tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@3f80152d26f7b3fefbd5b3de077cbd4775648f0e

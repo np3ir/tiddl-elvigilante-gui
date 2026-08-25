@@ -854,11 +854,20 @@ def run_tiddl(argv: list[str], on_line) -> int:
         # `sys.stdout.reconfigure(...)`; with the sink (no reconfigure attr)
         # already in place that call is skipped and flet's stdout is untouched.
         from tiddl.cli.app import app as tiddl_app, _reorder_download_options
+        import click  # for click.exceptions.Exit (the cooperative-stop signal below)
         sys.argv = _reorder_download_options(["tiddl", *argv])
         try:
             tiddl_app(standalone_mode=False)
             return 0
-        except SystemExit as e:  # some paths still raise it; treat as exit code
+        except click.exceptions.Exit as exc:
+            # A cooperative safety stop — Cancel, a TIDAL rate-limit (429) or a
+            # flagged/blocked account (401) — reaches us as click.exceptions.Exit
+            # (engine v1.5.3+): the download group's call_on_close now RAISES this
+            # instead of calling sys.exit(), which under flet's embedded interpreter
+            # used to HARD-KILL this whole process. Return the code so the host
+            # survives and stays reusable for the next in-process run.
+            return int(exc.exit_code or 0)
+        except SystemExit as e:  # defensive: some paths may still raise it
             code = e.code
             return code if isinstance(code, int) else (0 if code is None else 1)
     except BaseException as e:  # log to gui-crash.log AND surface into the GUI log
