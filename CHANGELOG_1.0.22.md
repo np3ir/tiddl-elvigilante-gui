@@ -18,6 +18,13 @@
     embedded metadata, standalone cover file, m3u, video path) — change any of them and it starts a fresh
     resume instead of skipping resources done under the old settings.
 - **Resume checkbox wording:** now says it skips already-done **items** (any resource), not just artists.
+- **Cleaner installer upgrades.** The Windows installer now removes the previous
+  version's app payload (`app`, `data`, `DLLs`, `Lib`, `site-packages`, and the
+  root `*.dll` / `tiddl*.exe` / `ffmpeg.exe`) **before** copying the new one, so an
+  in-place upgrade can no longer leave orphaned files behind — which could
+  otherwise make the app report the wrong bundled-engine commit. Your settings,
+  authentication and downloads (outside the install folder) are untouched, and the
+  uninstaller is preserved.
 
 ## Novedades
 
@@ -37,3 +44,10 @@
     nombres, metadata embebida, carátula suelta, m3u, ruta de video) — cambiar cualquiera arranca un resume
     limpio en vez de saltar recursos hechos con los ajustes viejos.
 - **Texto del checkbox Resume:** ahora dice que salta **recursos** ya hechos, no solo artistas.
+- **Actualizaciones del instalador más limpias.** El instalador de Windows ahora
+  **elimina** el contenido de la versión anterior (`app`, `data`, `DLLs`, `Lib`,
+  `site-packages`, y en la raíz `*.dll` / `tiddl*.exe` / `ffmpeg.exe`) **antes** de
+  copiar el nuevo, así una actualización in-place ya no deja archivos huérfanos
+  —que podían hacer que la app mostrara el commit del motor embebido equivocado—.
+  Tus ajustes, autenticación y descargas (fuera de la carpeta de instalación)
+  quedan intactos, y el desinstalador se conserva.
