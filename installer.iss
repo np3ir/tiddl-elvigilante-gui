@@ -41,6 +41,23 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
+[InstallDelete]
+; Clean the app-managed payload BEFORE [Files] copies the new one, so an in-place
+; upgrade can never leave orphaned files from a previous version (e.g. stale
+; tiddl_elvigilante-*.dist-info that shadow the bundled engine's metadata, or an
+; old tiddl.exe / dartjni.dll at the root). Scoped to ONLY what this app installs
+; — never {app}\* — so the Inno uninstaller (unins000.exe / unins000.dat) and any
+; unrelated file are preserved. flet build lays the payload out as these five
+; directories plus root-level DLLs, the tiddl launcher(s) and ffmpeg.
+Type: filesandordirs; Name: "{app}\app"
+Type: filesandordirs; Name: "{app}\data"
+Type: filesandordirs; Name: "{app}\DLLs"
+Type: filesandordirs; Name: "{app}\Lib"
+Type: filesandordirs; Name: "{app}\site-packages"
+Type: files; Name: "{app}\*.dll"
+Type: files; Name: "{app}\tiddl*.exe"
+Type: files; Name: "{app}\ffmpeg.exe"
+
 [Files]
 ; GUI binario unico (carpeta completa de flet build - tiddl va embebido)
 Source: "C:\tiddl-gui\build\windows\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
