@@ -8,7 +8,9 @@
 #define MyAppName "tiddl by ElVigilante"
 ; La version es OBLIGATORIA por linea de comandos: nunca un valor por defecto
 ; silencioso (antes caia a 1.0.16 y producia un instalable con version erronea).
-;   ISCC.exe /DMyAppVersion=1.0.22 installer.iss
+; release.ps1 lee APP_VERSION desde main.py y pasa MyAppVersion automaticamente.
+; Compilacion manual: ISCC.exe /DMyAppVersion=X.Y.Z installer.iss
+; (X.Y.Z debe coincidir exactamente con APP_VERSION en main.py.)
 #ifndef MyAppVersion
   #error MyAppVersion no fue definido. Compila con: ISCC /DMyAppVersion=X.Y.Z installer.iss
 #endif
