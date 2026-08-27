@@ -1,6 +1,6 @@
 # Stereo Resolver GUI Integration — Continuation Memory
 
-Last updated: 2026-08-19
+Last updated: 2026-08-27
 
 The engine repository is the sibling directory `../tiddl-elvigilante`.
 Authoritative technical state is recorded in its
@@ -11,14 +11,21 @@ Authoritative technical state is recorded in its
 - GUI 1.0.16 passes the selected audio edition and quality policy to the engine.
 - The new controls, catalog-only verification action, fatal-stop handling and
   responsive layout are implemented and covered by the release audit below.
-- **CURRENT (GUI 1.0.22, engine bump 2026-08-25):** `requirements.txt` pins engine
-  **`3f80152d26f7b3fefbd5b3de077cbd4775648f0e`** (release **v1.5.3** — the host-safe cooperative stop:
+- **CURRENT SOURCE (GUI 1.0.23 release candidate, not yet built or published):** `requirements.txt` pins
+  engine **`b25ff9ce8d69fbb4f2d91d5cfbc36e6568c5e881`** (release **v1.5.4**). v1.5.4
+  fixes the frequent-429 regression in large `--artists` / high-quality runs by keeping enumeration on the
+  TV client, selecting HiRes per track, and sharing one request budget across both clients. It also makes
+  `max_tracks_per_session` stop new work reliably through atomic per-track reservation. The host-safe
+  cooperative stop introduced in v1.5.3 remains in place:
   Cancel / rate-limit 429 / account-flagged 401 raise `click.exceptions.Exit` instead of `sys.exit()`, so
   the in-process engine no longer hard-kills this GUI on a stop; `run_tiddl` catches it and returns the exit
-  code). v1.5.3 also carries the earlier v1.5.0–v1.5.2 work: giant-run hardening (429 breaker,
+  code. v1.5.4 also carries the earlier v1.5.0–v1.5.2 work: giant-run hardening (429 breaker,
   bounded-memory pool, `--resume` checkpoint), the quality cascade with Atmos + FLAC-over-Atmos, and the
-  `-q atmos` and resume-signature fixes. This is the authoritative engine pin the GUI is built and validated
-  against.
+  `-q atmos` and resume-signature fixes. This is the authoritative engine pin for the 1.0.23 source and
+  future builds.
+- _(published historical release)_ GUI 1.0.22 pinned engine
+  `3f80152d26f7b3fefbd5b3de077cbd4775648f0e` (v1.5.3). Its published artifacts and hashes remain
+  unchanged; do not treat the 1.0.23 source pin as part of those binaries.
 - _(historical, do not use for reproduction)_ GUI 1.0.16 pinned engine
   `a13230e6861a2c12018aa11f334b2b8c1519bb05` (itself succeeding `862dec0…`; that revision added the
   non-zero-exit-on-safety-stop and strict-Normal -> TIDAL `HIGH` fixes). Kept for provenance only.
