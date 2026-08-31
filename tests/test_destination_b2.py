@@ -122,6 +122,7 @@ class ModeProbe:
     _dest_mode = main.TiddlGui._dest_mode
     _dest_path = main.TiddlGui._dest_path
     _dest_render = main.TiddlGui._dest_render
+    _apply_destination_mode_state = main.TiddlGui._apply_destination_mode_state
     on_dest_mode_change = main.TiddlGui.on_dest_mode_change
 
     def __init__(self, ctl, mode_value):
@@ -230,6 +231,87 @@ def test_adopt_refused_after_switch_clears_marker_state():
 
 
 # ---------------------------------------------------------------------------
+# Sourcery follow-up: the mode → B1-state transition helper is the single source
+# of truth, so a stash restore (direct .value assignment, which does not fire
+# on_change) can never leave the selector and the controller state divergent.
+# ---------------------------------------------------------------------------
+class _NoEngine:
+    def __call__(self, argv):
+        raise AssertionError(f"engine must not be called on a mode sync: {argv!r}")
+
+
+class HelperProbe:
+    _apply_destination_mode_state = main.TiddlGui._apply_destination_mode_state
+
+    def __init__(self, ctl, value):
+        self.dest_ctl = ctl
+        self.f_dest_mode = _NS(value=value)
+
+
+def _quiet_ctl(state="disabled", hint=None):
+    ctl = main.DestinationController(_NoEngine(), isdir=lambda _p: True)
+    ctl.state = state
+    ctl.adopt_hint_path = hint
+    return ctl
+
+
+def test_apply_mode_state_off_sets_disabled_and_clears_hint():
+    ctl = _quiet_ctl(state="marker_unadopted", hint=PATH)
+    p = HelperProbe(ctl, "off")
+    assert p._apply_destination_mode_state() == "off"
+    assert ctl.state == "disabled"
+    assert ctl.adopt_hint_path is None
+    assert p.f_dest_mode.value == "off"
+
+
+def test_apply_mode_state_strict_sets_unknown_and_clears_hint():
+    ctl = _quiet_ctl(state="marker_unadopted", hint=PATH)
+    p = HelperProbe(ctl, "strict")
+    assert p._apply_destination_mode_state() == "strict"
+    assert ctl.state == "unknown"
+    assert ctl.adopt_hint_path is None
+    assert p.f_dest_mode.value == "strict"
+
+
+def test_apply_mode_state_normalizes_and_can_take_explicit_mode():
+    ctl = _quiet_ctl()
+    p = HelperProbe(ctl, "STRICT")
+    assert p._apply_destination_mode_state() == "strict"  # from live selector
+    assert p.f_dest_mode.value == "strict"
+    p2 = HelperProbe(_quiet_ctl(), "off")
+    assert p2._apply_destination_mode_state("garbage") == "off"  # explicit arg wins
+    assert p2.f_dest_mode.value == "off"
+
+
+def test_apply_mode_state_runs_no_engine_command():
+    # _NoEngine raises on any call, so reaching this assertion proves none ran.
+    ctl = _quiet_ctl(state="unknown")
+    HelperProbe(ctl, "strict")._apply_destination_mode_state()
+    HelperProbe(ctl, "off")._apply_destination_mode_state()
+
+
+def test_rebuild_restore_keeps_selector_and_state_coherent_off_to_strict():
+    # Persisted "off" → build() would leave state "disabled"; the stash restores
+    # an unsaved "strict"; the post-restore resync must make them coherent.
+    ctl = _quiet_ctl(state="disabled")          # what build() left from persisted off
+    probe = HelperProbe(ctl, "off")             # freshly-built selector = persisted off
+    stash_value = "strict"                       # the user's unsaved choice
+    probe.f_dest_mode.value = stash_value        # stash restore (direct .value assign)
+    probe._apply_destination_mode_state()        # the rebuild() resync (the fix)
+    assert probe.f_dest_mode.value == "strict"
+    assert ctl.state == "unknown"                # coherent — NOT "disabled"
+
+
+def test_rebuild_restore_keeps_selector_and_state_coherent_strict_to_off():
+    ctl = _quiet_ctl(state="unknown")           # build() from persisted strict
+    probe = HelperProbe(ctl, "strict")
+    probe.f_dest_mode.value = "off"             # stash restores an unsaved off
+    probe._apply_destination_mode_state()
+    assert probe.f_dest_mode.value == "off"
+    assert ctl.state == "disabled"              # coherent
+
+
+# ---------------------------------------------------------------------------
 # 7: apply_runtime_config feeds the selected mode into CONFIG.download.*
 # ---------------------------------------------------------------------------
 class ApplyProbe:
@@ -293,6 +375,7 @@ class SettingsProbe:
     numeric_settings = main.TiddlGui.numeric_settings
     _dest_mode = main.TiddlGui._dest_mode
     _dest_path = main.TiddlGui._dest_path
+    _apply_destination_mode_state = main.TiddlGui._apply_destination_mode_state
     cfg_dl = main.TiddlGui.cfg_dl
     cfg_tpl = main.TiddlGui.cfg_tpl
     cfg_meta = main.TiddlGui.cfg_meta

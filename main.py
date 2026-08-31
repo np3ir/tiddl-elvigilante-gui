@@ -1604,6 +1604,13 @@ class TiddlGui:
                 self.noskip_cb.value = value
             elif hasattr(self, name):
                 getattr(self, name).value = value
+        # B2: the stash restores f_dest_mode.value by direct assignment, which
+        # does NOT fire on_dest_mode_change — resync the controller state to the
+        # restored (normalized) mode so the shown selector and the B1 state can
+        # never diverge. No engine command; no auto status/Trust/Adopt.
+        if hasattr(self, "f_dest_mode") and hasattr(self, "dest_ctl"):
+            self._apply_destination_mode_state()
+            self._dest_render()
         self.refresh()
 
     def build_download_tab(self) -> ft.Control:
@@ -2465,9 +2472,7 @@ class TiddlGui:
         self.f_m3u_mix.value = "mix" in _m3u
         # B2: restore the persisted identity mode and invalidate any stale B1
         # state (a fresh Check is required under strict; off shows disabled).
-        self.f_dest_mode.value = identity_from_config(self.cfg)
-        self.dest_ctl.state = "disabled" if self.f_dest_mode.value == "off" else "unknown"
-        self.dest_ctl.adopt_hint_path = None
+        self._apply_destination_mode_state(identity_from_config(self.cfg))
         self._dest_render()
         self.settings_status.value = self.t("reloaded")
         self.refresh()
@@ -2501,6 +2506,24 @@ class TiddlGui:
             return _norm_identity(field.value)
         return _norm_identity(self.cfg_dl("destination_identity", "off"))
 
+    def _apply_destination_mode_state(self, mode=None):
+        """Single source of truth for the B2 mode → B1-state transition. Normalize
+        the mode (from the argument, else the live selector), pin the selector to
+        that normalized value, and invalidate B1 accordingly — off ⇒ "disabled",
+        strict ⇒ "unknown" (a fresh Check is required) — always clearing any adopt
+        hint. Runs NO engine command (no status/trust/adopt) and does not render;
+        callers render. Used by the selector's on_change AND by the reload/rebuild
+        restores, so the shown selector value and the controller state can never
+        diverge (e.g. a stash restore assigns `.value` directly, which does not
+        fire on_change)."""
+        mode = _norm_identity(
+            mode if mode is not None else getattr(self.f_dest_mode, "value", None)
+        )
+        self.f_dest_mode.value = mode
+        self.dest_ctl.state = "disabled" if mode == "off" else "unknown"
+        self.dest_ctl.adopt_hint_path = None
+        return mode
+
     def on_dest_mode_change(self, e):
         """B2: the identity-mode selector changed. Invalidate any stale B1 state
         so mutating actions can't fire against an outdated check, and NEVER run
@@ -2511,10 +2534,7 @@ class TiddlGui:
         - strict → mark "not checked yet"; the user must Check again before any
           mutating action is offered (off→strict re-requires a fresh check).
         """
-        mode = _norm_identity(self.f_dest_mode.value)
-        self.f_dest_mode.value = mode  # normalize the shown value in place
-        self.dest_ctl.state = "disabled" if mode == "off" else "unknown"
-        self.dest_ctl.adopt_hint_path = None
+        self._apply_destination_mode_state()
         self._dest_render(status_msg=self.t(f"dest_state_{self.dest_ctl.state}"))
         self.page.update()
 
