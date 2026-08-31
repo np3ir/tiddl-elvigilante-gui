@@ -19,6 +19,8 @@ import re
 import sys
 import types
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import main  # noqa: E402
 
@@ -309,6 +311,132 @@ def test_rebuild_restore_keeps_selector_and_state_coherent_strict_to_off():
     probe._apply_destination_mode_state()
     assert probe.f_dest_mode.value == "off"
     assert ctl.state == "disabled"              # coherent
+
+
+# ---------------------------------------------------------------------------
+# LEVEL 2: integration through the REAL TiddlGui.rebuild() wiring.
+#
+# The helper tests above are unit-level. These drive `main.TiddlGui.rebuild`
+# itself (stash → clear → build() → restore → post-stash resync → render/refresh)
+# so that if the post-stash `_apply_destination_mode_state()` call were removed
+# from rebuild(), the original divergence would resurface and these fail. A
+# recording engine asserts NOT ONE destination command is issued by a rebuild.
+# ---------------------------------------------------------------------------
+class RecordingEngine:
+    """Records every argv; returns benign output so an accidental call does not
+    crash before the test can assert `calls == []`."""
+
+    def __init__(self):
+        self.calls = []
+
+    def __call__(self, argv):
+        self.calls.append(list(argv))
+        if argv[:2] == STATUS:
+            return 0, [f"{argv[-1]}: unknown_root"]
+        return 0, ["ok"]
+
+
+class RebuildProbe:
+    """Minimal object that binds the REAL rebuild() + resync helper. build() is a
+    faithful stub: it recreates the selector control from the PERSISTED config
+    value and seeds dest_ctl.state exactly as the real build guard does (only
+    when it is still "unknown"), so a removed resync leaves a divergent state."""
+
+    rebuild = main.TiddlGui.rebuild
+    _apply_destination_mode_state = main.TiddlGui._apply_destination_mode_state
+
+    def __init__(self, *, persisted, live_mode, prev_state, prev_hint=None):
+        self._persisted = persisted
+        self.engine = RecordingEngine()
+        self.dest_ctl = main.DestinationController(self.engine, isdir=lambda _p: True)
+        self.dest_ctl.state = prev_state
+        self.dest_ctl.adopt_hint_path = prev_hint
+        self.f_dest_mode = _NS(value=live_mode)   # current unsaved selector value
+        self.urls_field = _NS(value="url")
+        self.quality_dd = _NS(value="high")
+        self.noskip_cb = _NS(value=False)
+        self.page = _NS(controls=[])              # a real list → has .clear()
+        self.renders = 0
+        self.refreshes = 0
+
+    def build(self):
+        # Recreate the selector from the persisted config (a fresh control), and
+        # seed dest_ctl.state like the real build() guard: only if "unknown".
+        self.f_dest_mode = _NS(value=main._norm_identity(self._persisted))
+        if self.dest_ctl.state == "unknown":
+            self.dest_ctl.state = "disabled" if self.f_dest_mode.value == "off" else "unknown"
+
+    def _dest_render(self, **k):
+        self.renders += 1
+
+    def refresh(self, *a, **k):
+        self.refreshes += 1
+
+
+def _assert_no_engine_side_effects(engine):
+    assert engine.calls == []  # no destination command at all
+    joined = [" ".join(c) for c in engine.calls]
+    assert not any("destination status" in j for j in joined)
+    assert not any("destination trust" in j for j in joined)
+    assert not any("--confirm-mounted" in j for j in joined)
+    assert not any("--adopt-existing" in j for j in joined)
+
+
+def test_real_rebuild_persisted_off_unsaved_strict():
+    p = RebuildProbe(
+        persisted="off", live_mode="strict",
+        prev_state="marker_unadopted", prev_hint=PATH,
+    )
+    p.rebuild()  # the production wiring, not a manual reproduction
+    assert p.f_dest_mode.value == "strict"
+    assert p.dest_ctl.state == "unknown"
+    assert p.dest_ctl.adopt_hint_path is None
+    assert p.dest_ctl.can_trust() is False
+    assert p.dest_ctl.can_adopt() is False
+    _assert_no_engine_side_effects(p.engine)
+    assert p.renders >= 1 and p.refreshes >= 1  # it did render/refresh
+
+
+def test_real_rebuild_persisted_strict_unsaved_off():
+    p = RebuildProbe(
+        persisted="strict", live_mode="off",
+        prev_state="trusted", prev_hint=None,
+    )
+    p.rebuild()
+    assert p.f_dest_mode.value == "off"
+    assert p.dest_ctl.state == "disabled"
+    assert p.dest_ctl.adopt_hint_path is None
+    assert p.dest_ctl.can_trust() is False
+    assert p.dest_ctl.can_adopt() is False
+    _assert_no_engine_side_effects(p.engine)
+
+
+@pytest.mark.parametrize("prev_state", ["trusted", "untrusted", "marker_unadopted"])
+@pytest.mark.parametrize("live_mode, expected_state", [("strict", "unknown"), ("off", "disabled")])
+def test_real_rebuild_invalidates_any_prior_state(prev_state, live_mode, expected_state):
+    p = RebuildProbe(
+        persisted="off" if live_mode == "strict" else "strict",
+        live_mode=live_mode, prev_state=prev_state, prev_hint=PATH,
+    )
+    p.rebuild()
+    assert p.f_dest_mode.value == live_mode
+    assert p.dest_ctl.state == expected_state
+    assert p.dest_ctl.adopt_hint_path is None
+    assert p.dest_ctl.can_trust() is False
+    assert p.dest_ctl.can_adopt() is False
+    _assert_no_engine_side_effects(p.engine)
+
+
+def test_real_rebuild_normalizes_an_invalid_stashed_value():
+    p = RebuildProbe(
+        persisted="strict", live_mode="garbage",
+        prev_state="untrusted", prev_hint=PATH,
+    )
+    p.rebuild()
+    assert p.f_dest_mode.value == "off"       # conservatively normalized
+    assert p.dest_ctl.state == "disabled"
+    assert p.dest_ctl.adopt_hint_path is None
+    _assert_no_engine_side_effects(p.engine)
 
 
 # ---------------------------------------------------------------------------
