@@ -683,12 +683,12 @@ def _module_scope_assignments(source, name):
     return found
 
 
-def test_app_version_is_still_1_0_23_single_module_assignment():
+def test_app_version_is_1_0_24_single_module_assignment():
     src = (main.__file__ and open(os.path.join(ROOT, "main.py"), encoding="utf-8").read())
     binds = _module_scope_assignments(src, "APP_VERSION")
     assert len(binds) == 1
     value = binds[0].value
-    assert isinstance(value, ast.Constant) and value.value == "1.0.23"
+    assert isinstance(value, ast.Constant) and value.value == "1.0.24"
 
 
 def test_engine_pin_is_still_v1_5_5_commit():

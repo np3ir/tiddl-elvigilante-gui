@@ -24,14 +24,21 @@ Authoritative technical state is recorded in its
   the exit code) and the earlier v1.5.0–v1.5.2 work: giant-run hardening (429 breaker, bounded-memory
   pool, `--resume` checkpoint), the quality cascade with Atmos + FLAC-over-Atmos, and the `-q atmos` and
   resume-signature fixes.
-- **CURRENT SOURCE (after the v1.5.5 re-pin — not yet built or published as a new GUI version):**
-  `requirements.txt` now pins engine **`13c4e9151cc3fb41954ca5312f11c5d34e2ad181`** (release **v1.5.5**),
-  which adds the cross-folder `Exists (Alt)` / Dolby Atmos skip fix on top of v1.5.4: skip-existing is
-  scoped to each track's own folder (a same-titled FLAC in another album no longer masks an Atmos track),
-  the real on-disk name/casing is preserved, and an Atmos request treats Atmos as a distinct modality.
-  `APP_VERSION` stays **1.0.23** and `main.py` is unchanged; **no** new GUI version has been built,
-  installed, or published from this pin. This is the authoritative engine pin for the current 1.0.23
-  source and future builds.
+- **CURRENT SOURCE (GUI 1.0.24 — prepared, NOT built/installed/published):** `requirements.txt` pins
+  engine **`13c4e9151cc3fb41954ca5312f11c5d34e2ad181`** (release **v1.5.5**), which adds the cross-folder
+  `Exists (Alt)` / Dolby Atmos skip fix on top of v1.5.4: skip-existing is scoped to each track's own
+  folder (a same-titled FLAC in another album no longer masks an Atmos track), the real on-disk
+  name/casing is preserved, and an Atmos request treats Atmos as a distinct modality; TV/HiRes routing,
+  the quality cascade and the RPM budget are unchanged from v1.5.4. This source **also** carries the
+  destination-identity features: **B1** (a status view — trusted / untrusted / marker-pending-adoption /
+  absent / disabled / error — read through `tiddl destination status`, with Trust = one confirmation and
+  Adopt = double confirmation, path captured/shown, re-validate before Adopt, re-query after each
+  mutation, never auto-run) and **B2** (a `destination_identity` selector `off`/`strict`, persisted in the
+  engine config and synced to the embedded engine before each run; changing the mode never creates,
+  adopts, or removes identity, and switching to `strict` requires a fresh check). `APP_VERSION` is bumped
+  to **1.0.24** in source; **no** GUI artifact has been built, installed, or published from it — the
+  public release is still **1.0.23**. This is the authoritative engine pin for the 1.0.24 source and any
+  future build.
 - _(published historical release)_ GUI 1.0.22 pinned engine
   `3f80152d26f7b3fefbd5b3de077cbd4775648f0e` (v1.5.3). Its published artifacts and hashes remain
   unchanged; do not treat the 1.0.23 source pin as part of those binaries.
