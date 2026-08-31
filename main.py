@@ -993,14 +993,27 @@ def parse_dest_status_reason(lines) -> "str | None":
 
 
 def classify_dest_status(exit_code: int, lines) -> str:
-    """Map a read-only status result to a GUI state. Status never returns a
-    non-zero exit for an untrusted root (it just prints the reason), so the
-    reason token — not the exit code — drives the classification; unrecognized
-    output is surfaced as an error rather than silently treated as trusted."""
+    """Map a read-only status result to a GUI state. A non-zero exit is an
+    error regardless of what the output contains (a spoofed/garbled line with
+    the word `trusted` must never read as trusted). Otherwise the reason token
+    drives it; unrecognized output is surfaced as an error, never trusted."""
+    if exit_code != 0:
+        return "error"
     reason = parse_dest_status_reason(lines)
     if reason is None:
         return "error"
     return _DEST_REASON_STATE.get(reason, "untrusted")
+
+
+# Controller-result reason → i18n status key (also used by the UI status line).
+_DEST_RES_KEY = {
+    "ok": "dest_res_trusted",
+    "needs_adopt": "dest_res_needs_adopt",
+    "incompatible_state": "dest_res_incompatible",
+    "path_mismatch": "dest_res_incompatible",
+    "cancelled": "dest_res_cancelled",
+    "error": "dest_res_error",
+}
 
 
 def dest_trust_reveals_marker(lines) -> bool:
@@ -1062,56 +1075,79 @@ class DestinationController:
     only when status itself reports `trusted`, never on an exit code alone."""
 
     TRUST_STATES = frozenset({"untrusted"})
-    ADOPT_STATES = frozenset({"marker_unadopted"})
 
     def __init__(self, run, isdir=None) -> None:
         self._run = run
         self._isdir = isdir or os.path.isdir
-        self.path = ""
+        self.path = ""                     # the authorized root: whatever was last refreshed
         self.state = "unknown"
         self.last_lines: list = []
+        #: The adopt-able marker hint is kept SEPARATE from the state and bound
+        #: to the exact path it was discovered for, so it can never be applied
+        #: to a different root. A plain status refresh clears it.
+        self.adopt_hint_path: "str | None" = None
 
     # -- read-only ----------------------------------------------------------
     def refresh(self, path: str, mode: str) -> str:
+        """Read-only. ANY non-empty path ALWAYS runs `destination status`;
+        `isdir`/`mode` only REFINE the diagnosis afterwards, never skip the
+        command. A fresh read invalidates the transient adopt hint."""
         self.path = path or ""
-        if mode == "off":
-            self.state, self.last_lines = "disabled", []
-            return self.state
-        if not self.path or not self._isdir(self.path):
+        self.adopt_hint_path = None
+        if not self.path:
             self.state, self.last_lines = "absent", []
             return self.state
         code, lines = self._run(dest_status_argv(self.path))
         self.last_lines = list(lines)
-        self.state = classify_dest_status(code, lines)
+        state = classify_dest_status(code, lines)
+        if not self._isdir(self.path):     # refine: a path we can't see is "not mounted"
+            state = "absent"
+        if mode == "off":                  # refine: identity checking is off in config
+            state = "disabled"
+        self.state = state
         return self.state
 
     def can_trust(self) -> bool:
         return self.state in self.TRUST_STATES
 
     def can_adopt(self) -> bool:
-        return self.state in self.ADOPT_STATES
+        # Only when the marker hint was discovered for exactly this root.
+        return self.state == "marker_unadopted" and self.adopt_hint_path == self.path
 
-    # -- mutating (state- and confirmation-gated) ---------------------------
-    def trust(self, gate: ConfirmationGate, mode: str) -> DestResult:
+    # -- mutating (path-, state- and confirmation-gated) --------------------
+    def trust(self, gate: ConfirmationGate, path: str, mode: str) -> DestResult:
+        # The path the caller displayed/authorized must be the one we mutate.
+        if path != self.path:
+            return DestResult(False, "path_mismatch", self.state, [])
         if not self.can_trust():
             return DestResult(False, "incompatible_state", self.state, [])
         if not gate.proceed:
             return DestResult(False, "cancelled", self.state, [])
-        code, lines = self._run(dest_trust_argv(self.path))
-        if dest_trust_reveals_marker(lines):
-            self.state, self.last_lines = "marker_unadopted", list(lines)
-            return DestResult(True, "needs_adopt", self.state, lines)
-        self.refresh(self.path, mode)   # never claim success on exit-code 0 alone
-        return DestResult(True, "ok" if self.state == "trusted" else "error", self.state, lines)
+        code, lines = self._run(dest_trust_argv(path))
+        hint = dest_trust_reveals_marker(lines)   # bound to THIS path's attempt
+        self.refresh(path, mode)                  # always re-query — never trust exit 0 alone
+        if self.state == "trusted":
+            return DestResult(True, "ok", "trusted", lines)
+        if hint and self.state == "untrusted":
+            self.state = "marker_unadopted"
+            self.adopt_hint_path = path
+            return DestResult(True, "needs_adopt", "marker_unadopted", lines)
+        return DestResult(True, "error", self.state, lines)
 
-    def adopt(self, gate: ConfirmationGate, mode: str) -> DestResult:
+    def adopt(self, gate: ConfirmationGate, path: str, mode: str) -> DestResult:
+        # Reject unless the requested path is the authorized root AND the one the
+        # adopt hint was discovered for.
+        if path != self.path or self.adopt_hint_path != path:
+            return DestResult(False, "path_mismatch", self.state, [])
         if not self.can_adopt():
             return DestResult(False, "incompatible_state", self.state, [])
         if not gate.proceed:
             return DestResult(False, "cancelled", self.state, [])
-        code, lines = self._run(dest_adopt_argv(self.path))
-        self.refresh(self.path, mode)
-        return DestResult(True, "ok" if self.state == "trusted" else "error", self.state, lines)
+        code, lines = self._run(dest_adopt_argv(path))
+        self.refresh(path, mode)                  # re-query after adopt
+        if self.state == "trusted":
+            return DestResult(True, "ok", "trusted", lines)
+        return DestResult(True, "error", self.state, lines)
 
 
 def download_lock_path() -> Path:
@@ -2380,14 +2416,17 @@ class TiddlGui:
         mode = self.cfg_dl("destination_identity", "off")
         return mode if mode in ("off", "strict") else "off"
 
-    def _dest_set_busy(self, busy: bool):
-        for b in (self.dest_check_btn, self.dest_trust_btn, self.dest_adopt_btn):
-            b.disabled = busy
-        self.refresh(self.dest_check_btn, self.dest_trust_btn, self.dest_adopt_btn)
+    def _dest_msg(self, res: "DestResult") -> str:
+        return self.t(_DEST_RES_KEY.get(res.reason, "dest_res_error"))
 
-    def _dest_apply_state_ui(self):
-        """Reflect the controller's current state in the status text (label +
-        color) and in which action buttons are visible. UI-thread only."""
+    def _dest_is_err(self, res: "DestResult") -> bool:
+        return res.reason in ("error", "incompatible_state", "path_mismatch")
+
+    def _dest_render(self, *, busy=None, status_msg=None, status_error: bool = False):
+        """Set every destination-section control property from the controller's
+        current state (plus optional busy + a status-bar message). PURE property
+        mutation — no page.update; the caller performs exactly one update so all
+        of a worker's Flet changes commit together (never piecemeal)."""
         state = self.dest_ctl.state
         self.dest_status_text.value = self.t(f"dest_state_{state}")
         self.dest_status_text.color = {
@@ -2398,63 +2437,94 @@ class TiddlGui:
             "disabled": ft.Colors.OUTLINE,
             "error": ft.Colors.ERROR,
         }.get(state, ft.Colors.OUTLINE)
-        self.dest_path_text.value = self._dest_path() or "—"
+        self.dest_path_text.value = self.dest_ctl.path or self._dest_path() or "—"
         self.dest_trust_btn.visible = self.dest_ctl.can_trust()
         self.dest_adopt_btn.visible = self.dest_ctl.can_adopt()
-        self.refresh(
-            self.dest_status_text, self.dest_path_text, self.dest_trust_btn, self.dest_adopt_btn
-        )
+        if busy is not None:
+            for b in (self.dest_check_btn, self.dest_trust_btn, self.dest_adopt_btn):
+                b.disabled = busy
+        if status_msg is not None:
+            self.status_text.value = status_msg
+            self.status_text.color = self.pal["error"] if status_error else None
 
-    def _dest_report(self, res: "DestResult"):
-        key = {
-            "ok": "dest_res_trusted",
-            "needs_adopt": "dest_res_needs_adopt",
-            "incompatible_state": "dest_res_incompatible",
-            "cancelled": "dest_res_cancelled",
-            "error": "dest_res_error",
-        }.get(res.reason, "dest_res_error")
-        self.set_status(self.t(key), error=(res.reason in ("error", "incompatible_state")))
+    def _dest_commit(self, **kw):
+        """Schedule EVERY Flet mutation for one op as a single _run_on_ui
+        callback with exactly one page.update — the required batching for
+        worker-thread updates."""
+        def do():
+            self._dest_render(**kw)
+            self.page.update()
+
+        self._run_on_ui(do)
 
     def on_dest_check(self, e):
         """Read-only status query. Never mutates trust — always safe to run."""
-        self._dest_set_busy(True)
-        self.set_status(self.t("dest_state_checking"))
-        self.page.run_thread(self._dest_check_worker)
+        path = self._dest_path()
+        self._dest_render(busy=True, status_msg=self.t("dest_state_checking"))
+        self.page.update()
+        self.page.run_thread(lambda: self._dest_check_worker(path))
 
-    def _dest_check_worker(self):
+    def _dest_check_worker(self, path: str):
         try:
-            self.dest_ctl.refresh(self._dest_path(), self._dest_mode())
+            self.dest_ctl.refresh(path, self._dest_mode())
         except Exception as ex:
             write_crash("destination status", ex)
             self.dest_ctl.state = "error"
-        self._run_on_ui(self._dest_apply_state_ui)
-        self._dest_set_busy(False)
-        self.set_status(self.t(f"dest_state_{self.dest_ctl.state}"))
+        self._dest_commit(busy=False, status_msg=self.t(f"dest_state_{self.dest_ctl.state}"))
 
     def on_dest_trust(self, e):
-        """Trust the mounted destination — ONE explicit human confirmation, and
-        never auto-run: this fires only from the dialog's confirm button."""
-        if not self.dest_ctl.can_trust():
-            self.set_status(self.t("dest_res_incompatible"), error=True)
+        """Trust the mounted destination. Capture the path NOW, re-query status
+        for exactly that path, then confirm+mutate the SAME path. Never
+        auto-runs — the mutation fires only from the dialog's confirm button."""
+        path = self._dest_path()
+        if not path:
+            self._dest_render(status_msg=self.t("dest_res_incompatible"), status_error=True)
+            self.page.update()
             return
+        self._dest_render(busy=True, status_msg=self.t("dest_state_checking"))
+        self.page.update()
+        self.page.run_thread(lambda: self._dest_trust_prepare(path))
+
+    def _dest_trust_prepare(self, path: str):
+        try:
+            self.dest_ctl.refresh(path, self._dest_mode())
+        except Exception as ex:
+            write_crash("destination status", ex)
+            self.dest_ctl.state = "error"
+
+        def after():
+            if self.dest_ctl.can_trust():
+                self._dest_render(busy=False)
+                self.page.update()
+                self._open_trust_dialog(path)
+            else:
+                self._dest_render(
+                    busy=False, status_msg=self.t("dest_res_incompatible"), status_error=True
+                )
+                self.page.update()
+
+        self._run_on_ui(after)
+
+    def _open_trust_dialog(self, path: str):
         gate = ConfirmationGate(1)
 
         def do_confirm(_):
             gate.confirm()
             self.page.pop_dialog()
-            self._dest_set_busy(True)
-            self.set_status(self.t("dest_busy"))
-            self.page.run_thread(lambda: self._dest_trust_worker(gate))
+            self._dest_render(busy=True, status_msg=self.t("dest_busy"))
+            self.page.update()
+            self.page.run_thread(lambda: self._dest_trust_worker(gate, path))
 
         def do_cancel(_):
             gate.cancel()
             self.page.pop_dialog()
-            self.set_status(self.t("dest_res_cancelled"))
+            self._dest_render(status_msg=self.t("dest_res_cancelled"))
+            self.page.update()
 
         dlg = ft.AlertDialog(
             modal=True,
             title=ft.Text(self.t("dest_trust_title")),
-            content=ft.Text(self.t("dest_trust_q", path=self._dest_path())),
+            content=ft.Text(self.t("dest_trust_q", path=path)),
             actions=[
                 ft.TextButton(content=self.t("btn_cancel"), on_click=do_cancel),
                 ft.FilledButton(content=self.t("dest_trust_confirm"), on_click=do_confirm),
@@ -2462,37 +2532,38 @@ class TiddlGui:
         )
         self.page.show_dialog(dlg)
 
-    def _dest_trust_worker(self, gate: "ConfirmationGate"):
+    def _dest_trust_worker(self, gate: "ConfirmationGate", path: str):
         try:
-            res = self.dest_ctl.trust(gate, self._dest_mode())
+            res = self.dest_ctl.trust(gate, path, self._dest_mode())
         except Exception as ex:
             write_crash("destination trust", ex)
             self.dest_ctl.state = "error"
             res = DestResult(True, "error", "error", [])
-        self._run_on_ui(self._dest_apply_state_ui)
-        self._dest_set_busy(False)
-        self._dest_report(res)
+        self._dest_commit(busy=False, status_msg=self._dest_msg(res), status_error=self._dest_is_err(res))
 
     def on_dest_adopt(self, e):
         """Adopt an existing destination identity — DOUBLE explicit human
-        confirmation (two dialogs), available only in the marker-unadopted
-        state, and never auto-run."""
-        if not self.dest_ctl.can_adopt():
-            self.set_status(self.t("dest_res_incompatible"), error=True)
+        confirmation, available only in the marker-unadopted state discovered
+        for THIS exact path, and never auto-run."""
+        path = self._dest_path()
+        if not self.dest_ctl.can_adopt() or path != self.dest_ctl.path:
+            self._dest_render(status_msg=self.t("dest_res_incompatible"), status_error=True)
+            self.page.update()
             return
         gate = ConfirmationGate(2)
 
         def cancel(_):
             gate.cancel()
             self.page.pop_dialog()
-            self.set_status(self.t("dest_res_cancelled"))
+            self._dest_render(status_msg=self.t("dest_res_cancelled"))
+            self.page.update()
 
         def second_confirm(_):
             gate.confirm()
             self.page.pop_dialog()
-            self._dest_set_busy(True)
-            self.set_status(self.t("dest_busy"))
-            self.page.run_thread(lambda: self._dest_adopt_worker(gate))
+            self._dest_render(busy=True, status_msg=self.t("dest_busy"))
+            self.page.update()
+            self.page.run_thread(lambda: self._dest_adopt_worker(gate, path))
 
         def first_confirm(_):
             gate.confirm()
@@ -2511,7 +2582,7 @@ class TiddlGui:
         dlg1 = ft.AlertDialog(
             modal=True,
             title=ft.Text(self.t("dest_adopt_title1")),
-            content=ft.Text(self.t("dest_adopt_q1", path=self._dest_path())),
+            content=ft.Text(self.t("dest_adopt_q1", path=path)),
             actions=[
                 ft.TextButton(content=self.t("btn_cancel"), on_click=cancel),
                 ft.FilledButton(content=self.t("dest_adopt_confirm1"), on_click=first_confirm),
@@ -2519,16 +2590,14 @@ class TiddlGui:
         )
         self.page.show_dialog(dlg1)
 
-    def _dest_adopt_worker(self, gate: "ConfirmationGate"):
+    def _dest_adopt_worker(self, gate: "ConfirmationGate", path: str):
         try:
-            res = self.dest_ctl.adopt(gate, self._dest_mode())
+            res = self.dest_ctl.adopt(gate, path, self._dest_mode())
         except Exception as ex:
             write_crash("destination adopt", ex)
             self.dest_ctl.state = "error"
             res = DestResult(True, "error", "error", [])
-        self._run_on_ui(self._dest_apply_state_ui)
-        self._dest_set_busy(False)
-        self._dest_report(res)
+        self._dest_commit(busy=False, status_msg=self._dest_msg(res), status_error=self._dest_is_err(res))
 
     def on_save_defaults(self, e):
         nums = self.numeric_settings()
