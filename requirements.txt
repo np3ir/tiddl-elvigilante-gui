@@ -12,8 +12,12 @@ tomlkit>=0.13
 # account-flagged (401) now raise click.exceptions.Exit instead of calling
 # sys.exit(), so the in-process engine can no longer hard-kill this GUI on a stop
 # (see run_tiddl, which catches it and returns the exit code).
-# v1.5.4 (this pin) fixes the HTTP 429 regression on large --artists / high-quality
+# v1.5.4 fixes the HTTP 429 regression on large --artists / high-quality
 # runs — all enumeration (playlists, artists, albums, credits) stays on the lenient
 # TV client; the 24-bit HI_RES_LOSSLESS tier is fetched per-track only — and makes
 # max_tracks_per_session actually stop the run (atomic per-track reservation).
-tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@b25ff9ce8d69fbb4f2d91d5cfbc36e6568c5e881
+# v1.5.5 (this pin) fixes the cross-folder "Exists (Alt)" false-skip that dropped
+# Dolby Atmos tracks: skip-existing is scoped to each track's own folder, the real
+# on-disk name/casing is preserved, and an Atmos request treats Atmos as a distinct
+# modality (a same-titled stereo FLAC in another album no longer masks it).
+tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@13c4e9151cc3fb41954ca5312f11c5d34e2ad181

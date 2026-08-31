@@ -3,7 +3,7 @@
 The GUI ships tiddl in-process (single binary); `requirements.txt` is the SINGLE
 source of truth for which engine commit is bundled. `TIDDL_COMMIT` is derived at
 RUNTIME from the installed package's `direct_url.json` (see `main._tiddl_commit`),
-so it is deliberately NOT duplicated. 1.0.23 is pinned to engine **v1.5.4**.
+so it is deliberately NOT duplicated. 1.0.23 is pinned to engine **v1.5.5**.
 
 `main.py` is checked by parsing its SOURCE with `ast` — never imported (no
 `flet`/`tiddl` needed) — and, per the Sourcery finding, we require EXACTLY ONE
@@ -16,8 +16,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# The exact engine commit published as v1.5.4 (post-merge tiddl-elvigilante main).
-ENGINE_V1_5_4_COMMIT = "b25ff9ce8d69fbb4f2d91d5cfbc36e6568c5e881"
+# The exact engine commit published as v1.5.5 (post-merge tiddl-elvigilante main).
+ENGINE_V1_5_5_COMMIT = "13c4e9151cc3fb41954ca5312f11c5d34e2ad181"
 EXPECTED_APP_VERSION = "1.0.23"
 
 
@@ -32,14 +32,14 @@ def _main_text() -> str:
 # ---------------------------------------------------------------------------
 # The engine pin (requirements.txt)
 # ---------------------------------------------------------------------------
-def test_engine_pinned_to_v1_5_4_commit():
+def test_engine_pinned_to_v1_5_5_commit():
     m = re.search(
         r"tiddl-elvigilante\s*@\s*git\+https://github\.com/np3ir/"
         r"tiddl-elvigilante\.git@([0-9a-f]{40})",
         _requirements_text(),
     )
     assert m, "engine pin line not found or not a full 40-hex commit"
-    assert m.group(1) == ENGINE_V1_5_4_COMMIT
+    assert m.group(1) == ENGINE_V1_5_5_COMMIT
 
 
 def test_pin_is_a_single_immutable_commit_not_a_branch_or_tag():
