@@ -1,6 +1,6 @@
 # Stereo Resolver GUI Integration — Continuation Memory
 
-Last updated: 2026-08-27
+Last updated: 2026-08-31
 
 The engine repository is the sibling directory `../tiddl-elvigilante`.
 Authoritative technical state is recorded in its
@@ -11,18 +11,27 @@ Authoritative technical state is recorded in its
 - GUI 1.0.16 passes the selected audio edition and quality policy to the engine.
 - The new controls, catalog-only verification action, fatal-stop handling and
   responsive layout are implemented and covered by the release audit below.
-- **CURRENT SOURCE (GUI 1.0.23 release candidate, not yet built or published):** `requirements.txt` pins
-  engine **`b25ff9ce8d69fbb4f2d91d5cfbc36e6568c5e881`** (release **v1.5.4**). v1.5.4
-  fixes the frequent-429 regression in large `--artists` / high-quality runs by keeping enumeration on the
-  TV client, selecting HiRes per track, and sharing one request budget across both clients. It also makes
-  `max_tracks_per_session` stop new work reliably through atomic per-track reservation. The host-safe
-  cooperative stop introduced in v1.5.3 remains in place:
-  Cancel / rate-limit 429 / account-flagged 401 raise `click.exceptions.Exit` instead of `sys.exit()`, so
-  the in-process engine no longer hard-kills this GUI on a stop; `run_tiddl` catches it and returns the exit
-  code. v1.5.4 also carries the earlier v1.5.0–v1.5.2 work: giant-run hardening (429 breaker,
-  bounded-memory pool, `--resume` checkpoint), the quality cascade with Atmos + FLAC-over-Atmos, and the
-  `-q atmos` and resume-signature fixes. This is the authoritative engine pin for the 1.0.23 source and
-  future builds.
+- **GUI 1.0.23 (PUBLISHED — immutable artifacts):** source commit
+  **`125a932bae6b4d71b54b21f35a9acafd8e37cd70`**, embedded engine
+  **`b25ff9ce8d69fbb4f2d91d5cfbc36e6568c5e881`** (release **v1.5.4**). The published 1.0.23
+  installers/binaries embed **v1.5.4** and their hashes are fixed; do **not** treat those public
+  artifacts as containing v1.5.5. v1.5.4 fixed the frequent-429 regression in large `--artists` /
+  high-quality runs by keeping enumeration on the TV client, selecting HiRes per track, and sharing one
+  request budget across both clients, and made `max_tracks_per_session` stop new work reliably through
+  atomic per-track reservation. It also carries the v1.5.3 host-safe cooperative stop
+  (Cancel / rate-limit 429 / account-flagged 401 raise `click.exceptions.Exit` instead of `sys.exit()`,
+  so the in-process engine no longer hard-kills this GUI on a stop; `run_tiddl` catches it and returns
+  the exit code) and the earlier v1.5.0–v1.5.2 work: giant-run hardening (429 breaker, bounded-memory
+  pool, `--resume` checkpoint), the quality cascade with Atmos + FLAC-over-Atmos, and the `-q atmos` and
+  resume-signature fixes.
+- **CURRENT SOURCE (after the v1.5.5 re-pin — not yet built or published as a new GUI version):**
+  `requirements.txt` now pins engine **`13c4e9151cc3fb41954ca5312f11c5d34e2ad181`** (release **v1.5.5**),
+  which adds the cross-folder `Exists (Alt)` / Dolby Atmos skip fix on top of v1.5.4: skip-existing is
+  scoped to each track's own folder (a same-titled FLAC in another album no longer masks an Atmos track),
+  the real on-disk name/casing is preserved, and an Atmos request treats Atmos as a distinct modality.
+  `APP_VERSION` stays **1.0.23** and `main.py` is unchanged; **no** new GUI version has been built,
+  installed, or published from this pin. This is the authoritative engine pin for the current 1.0.23
+  source and future builds.
 - _(published historical release)_ GUI 1.0.22 pinned engine
   `3f80152d26f7b3fefbd5b3de077cbd4775648f0e` (v1.5.3). Its published artifacts and hashes remain
   unchanged; do not treat the 1.0.23 source pin as part of those binaries.
