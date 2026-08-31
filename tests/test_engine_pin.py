@@ -3,7 +3,7 @@
 The GUI ships tiddl in-process (single binary); `requirements.txt` is the SINGLE
 source of truth for which engine commit is bundled. `TIDDL_COMMIT` is derived at
 RUNTIME from the installed package's `direct_url.json` (see `main._tiddl_commit`),
-so it is deliberately NOT duplicated. 1.0.23 is pinned to engine **v1.5.5**.
+so it is deliberately NOT duplicated. 1.0.24 is pinned to engine **v1.5.5**.
 
 `main.py` is checked by parsing its SOURCE with `ast` — never imported (no
 `flet`/`tiddl` needed) — and, per the Sourcery finding, we require EXACTLY ONE
@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # The exact engine commit published as v1.5.5 (post-merge tiddl-elvigilante main).
 ENGINE_V1_5_5_COMMIT = "13c4e9151cc3fb41954ca5312f11c5d34e2ad181"
-EXPECTED_APP_VERSION = "1.0.23"
+EXPECTED_APP_VERSION = "1.0.24"
 
 
 def _requirements_text() -> str:
@@ -125,7 +125,7 @@ def _tiddl_commit_ok(source: str) -> bool:
 # ---------------------------------------------------------------------------
 # Positive: the real main.py
 # ---------------------------------------------------------------------------
-def test_app_version_single_module_assignment_is_1_0_23():
+def test_app_version_single_module_assignment_is_1_0_24():
     assert _app_version_ok(_main_text())
 
 
@@ -134,7 +134,7 @@ def test_tiddl_commit_single_module_assignment_is_derived_call():
 
 
 def test_reference_source_passes_both_checks():
-    good = 'APP_VERSION = "1.0.23"\nTIDDL_COMMIT = _tiddl_commit()\n'
+    good = 'APP_VERSION = "1.0.24"\nTIDDL_COMMIT = _tiddl_commit()\n'
     assert _app_version_ok(good)
     assert _tiddl_commit_ok(good)
 
@@ -143,9 +143,9 @@ def test_reference_source_passes_both_checks():
 # Negative: synthetic sources with a duplicate/overriding assignment are rejected
 # (these are exactly what a first-match text search would have wrongly accepted)
 # ---------------------------------------------------------------------------
-_DUP_APP_VERSION = 'APP_VERSION = "1.0.23"\nAPP_VERSION = "9.9.9"\n'
+_DUP_APP_VERSION = 'APP_VERSION = "1.0.24"\nAPP_VERSION = "9.9.9"\n'
 _APP_VERSION_OVERRIDDEN_IN_IF = (
-    'APP_VERSION = "1.0.23"\nif True:\n    APP_VERSION = "9.9.9"\n'
+    'APP_VERSION = "1.0.24"\nif True:\n    APP_VERSION = "9.9.9"\n'
 )
 _APP_VERSION_WRONG_VALUE = 'APP_VERSION = "9.9.9"\n'
 _TIDDL_HARDCODED_AFTER = 'TIDDL_COMMIT = _tiddl_commit()\nTIDDL_COMMIT = "deadbeef"\n'
