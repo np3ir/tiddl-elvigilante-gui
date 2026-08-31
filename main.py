@@ -371,6 +371,36 @@ STRINGS: dict[str, dict[str, str]] = {
         ),
         # --- new: m3u ---
         "sec_m3u": "Playlists (.m3u)",
+        "sec_destination": "Destination identity",
+        "dest_intro": "Verify and manage the trust marker on your destination volume, so downloads only write to the real, mounted library — not a stale local folder that happens to share the path.",
+        "dest_path_label": "Destination",
+        "dest_status_label": "Status",
+        "dest_state_trusted": "Trusted destination",
+        "dest_state_untrusted": "Untrusted destination (no local trust record)",
+        "dest_state_marker_unadopted": "Marker present but not adopted on this machine",
+        "dest_state_absent": "Destination absent / not mounted",
+        "dest_state_disabled": "Identity checking is disabled in the config",
+        "dest_state_error": "Error or unrecognized status output",
+        "dest_state_checking": "Checking status…",
+        "dest_state_unknown": "Status not checked yet",
+        "dest_btn_check": "Check status",
+        "dest_btn_trust": "Trust mounted destination",
+        "dest_btn_adopt": "Adopt existing identity",
+        "dest_trust_title": "Trust this destination?",
+        "dest_trust_q": "Trust this exact path as the real, currently-mounted destination:\n\n{path}\n\nOnly continue if this is the real destination volume, not a fallback local folder.",
+        "dest_trust_confirm": "Trust destination",
+        "dest_adopt_title1": "Adopt existing identity?",
+        "dest_adopt_q1": "A trust marker already exists at:\n\n{path}\n\nAdopting records THIS machine as trusting the identity found on the destination. It never modifies the destination. Continue?",
+        "dest_adopt_confirm1": "Continue",
+        "dest_adopt_title2": "Confirm adoption",
+        "dest_adopt_q2": "Final confirmation: adopt the existing destination identity on this machine?",
+        "dest_adopt_confirm2": "Adopt identity",
+        "dest_res_trusted": "Destination is now trusted.",
+        "dest_res_needs_adopt": "A marker already exists here — use “Adopt existing identity”.",
+        "dest_res_incompatible": "Action not available for the current status.",
+        "dest_res_error": "The operation did not result in a trusted status.",
+        "dest_res_cancelled": "Cancelled — nothing was changed.",
+        "dest_busy": "Working…",
         "m3u_save_cb": "Generate .m3u playlist files",
         "m3u_allowed_lbl": "Generate for:",
         # --- new: naming extras ---
@@ -595,6 +625,36 @@ STRINGS: dict[str, dict[str, str]] = {
         ),
         # --- new: m3u ---
         "sec_m3u": "Listas (.m3u)",
+        "sec_destination": "Identidad del destino",
+        "dest_intro": "Verifica y administra el marcador de confianza del volumen de destino, para que las descargas solo escriban en la biblioteca real y montada — no en una carpeta local obsoleta que comparta la ruta.",
+        "dest_path_label": "Destino",
+        "dest_status_label": "Estado",
+        "dest_state_trusted": "Destino confiable",
+        "dest_state_untrusted": "Destino no confiable (sin registro local de confianza)",
+        "dest_state_marker_unadopted": "Marcador presente pero no adoptado en esta máquina",
+        "dest_state_absent": "Destino ausente / no montado",
+        "dest_state_disabled": "La verificación de identidad está desactivada en la configuración",
+        "dest_state_error": "Error o salida de estado no reconocida",
+        "dest_state_checking": "Comprobando estado…",
+        "dest_state_unknown": "Estado sin comprobar todavía",
+        "dest_btn_check": "Comprobar estado",
+        "dest_btn_trust": "Confiar destino montado",
+        "dest_btn_adopt": "Adoptar identidad existente",
+        "dest_trust_title": "¿Confiar en este destino?",
+        "dest_trust_q": "Confiar esta ruta exacta como el destino real y actualmente montado:\n\n{path}\n\nContinúa solo si es el volumen de destino real, no una carpeta local de reserva.",
+        "dest_trust_confirm": "Confiar destino",
+        "dest_adopt_title1": "¿Adoptar identidad existente?",
+        "dest_adopt_q1": "Ya existe un marcador de confianza en:\n\n{path}\n\nAdoptar registra que ESTA máquina confía en la identidad encontrada en el destino. Nunca modifica el destino. ¿Continuar?",
+        "dest_adopt_confirm1": "Continuar",
+        "dest_adopt_title2": "Confirmar adopción",
+        "dest_adopt_q2": "Confirmación final: ¿adoptar la identidad de destino existente en esta máquina?",
+        "dest_adopt_confirm2": "Adoptar identidad",
+        "dest_res_trusted": "El destino ahora es confiable.",
+        "dest_res_needs_adopt": "Ya existe un marcador aquí — usa «Adoptar identidad existente».",
+        "dest_res_incompatible": "Acción no disponible para el estado actual.",
+        "dest_res_error": "La operación no resultó en un estado confiable.",
+        "dest_res_cancelled": "Cancelado — no se cambió nada.",
+        "dest_busy": "Trabajando…",
         "m3u_save_cb": "Generar archivos de lista .m3u",
         "m3u_allowed_lbl": "Generar para:",
         # --- new: naming extras ---
@@ -877,6 +937,240 @@ def run_tiddl(argv: list[str], on_line) -> int:
     finally:
         sink.drain()
         sys.stdout, sys.stderr, sys.argv = old_out, old_err, old_argv
+
+
+# ---------------------------------------------------------------------------
+# B1: destination-volume identity — status + trust/adopt (engine-driven).
+#
+# Everything here is Flet-independent and unit-testable offline: the UI injects
+# a `run(argv) -> (exit_code, lines)` that ultimately calls run_tiddl(). We NEVER
+# read or write destination_anchors.json / .tiddl-anchor ourselves — every read
+# (status) and every mutation (trust/adopt) goes through the engine's
+# `tiddl destination` command, the single place allowed to touch anchor state.
+# ---------------------------------------------------------------------------
+
+
+def dest_status_argv(path: str) -> list[str]:
+    return ["destination", "status", path]
+
+
+def dest_trust_argv(path: str) -> list[str]:
+    return ["destination", "trust", path, "--confirm-mounted"]
+
+
+def dest_adopt_argv(path: str) -> list[str]:
+    return ["destination", "trust", path, "--adopt-existing", "--confirm-mounted"]
+
+
+# Engine anchor-check reasons (tiddl.core.utils.destination_anchor) → the GUI's
+# coarse, human-facing states. `disabled` is config-derived (status always
+# evaluates as strict) and is decided before we ever query, so it is not here.
+_DEST_REASON_STATE = {
+    "trusted": "trusted",
+    "unknown_root": "untrusted",
+    "id_mismatch": "untrusted",
+    "marker_invalid": "untrusted",
+    "marker_unreadable": "untrusted",
+    "local_state_invalid": "untrusted",
+    "local_state_unreadable": "untrusted",
+    "not_contained": "untrusted",
+    "no_root_configured": "untrusted",
+    "marker_absent": "absent",
+}
+# Longest-first so a compound token (e.g. marker_unreadable) matches before any
+# shorter token it might contain.
+_DEST_REASONS = sorted(_DEST_REASON_STATE, key=len, reverse=True)
+
+
+def parse_dest_status_reason(lines) -> "str | None":
+    """`destination status <path>` prints one line `{path}: <reason> (detail)`.
+    Return that reason token, or None if the output has none we recognize."""
+    text = "\n".join(lines)
+    for token in _DEST_REASONS:
+        if re.search(r"(?<![A-Za-z_])" + re.escape(token) + r"(?![A-Za-z_])", text):
+            return token
+    return None
+
+
+def classify_dest_status(exit_code: int, lines) -> str:
+    """Map a read-only status result to a GUI state. A non-zero exit is an
+    error regardless of what the output contains (a spoofed/garbled line with
+    the word `trusted` must never read as trusted). Otherwise the reason token
+    drives it; unrecognized output is surfaced as an error, never trusted."""
+    if exit_code != 0:
+        return "error"
+    reason = parse_dest_status_reason(lines)
+    if reason is None:
+        return "error"
+    return _DEST_REASON_STATE.get(reason, "untrusted")
+
+
+# Controller-result reason → i18n status key (also used by the UI status line).
+_DEST_RES_KEY = {
+    "ok": "dest_res_trusted",
+    "needs_adopt": "dest_res_needs_adopt",
+    "incompatible_state": "dest_res_incompatible",
+    "path_mismatch": "dest_res_incompatible",
+    "cancelled": "dest_res_cancelled",
+    "error": "dest_res_error",
+}
+
+
+def dest_trust_reveals_marker(lines) -> bool:
+    """A `trust --confirm-mounted` that met a not-yet-adopted marker (or an id
+    mismatch) exits non-zero WITHOUT mutating and tells us to re-run with
+    --adopt-existing. That is how we discover the adopt-able state — never by
+    reading the marker file ourselves."""
+    return "--adopt-existing" in "\n".join(lines)
+
+
+class ConfirmationGate:
+    """Counts the explicit human confirmations collected before a mutating
+    destination op runs: trust needs 1, adopt needs 2. A single cancel makes it
+    never proceed, so a cancelled dialog yields zero mutating commands."""
+
+    def __init__(self, required: int) -> None:
+        self.required = required
+        self.count = 0
+        self.cancelled = False
+
+    def confirm(self) -> None:
+        if not self.cancelled:
+            self.count += 1
+
+    def cancel(self) -> None:
+        self.cancelled = True
+
+    @property
+    def proceed(self) -> bool:
+        return (not self.cancelled) and self.count >= self.required
+
+
+class DestResult:
+    """Outcome of a controller operation. `ran` is True only when a mutating
+    engine command actually executed."""
+
+    __slots__ = ("ran", "reason", "state", "lines")
+
+    def __init__(self, ran: bool, reason: str, state: str, lines) -> None:
+        self.ran = ran
+        self.reason = reason          # ok | needs_adopt | error | cancelled | incompatible_state
+        self.state = state            # the resulting, re-queried state
+        self.lines = list(lines)
+
+    def __repr__(self) -> str:
+        return f"DestResult(ran={self.ran!r}, reason={self.reason!r}, state={self.state!r})"
+
+    def __eq__(self, other) -> bool:
+        return isinstance(other, DestResult) and (
+            (self.ran, self.reason, self.state) == (other.ran, other.reason, other.state)
+        )
+
+
+class DestinationController:
+    """State machine for B1. Holds no Flet references; the UI injects
+    `run(argv) -> (exit_code, lines)` and an optional `isdir` probe. Every
+    mutating op is gated on the current state AND on a satisfied
+    ConfirmationGate, and re-queries `status` afterwards — success is claimed
+    only when status itself reports `trusted`, never on an exit code alone."""
+
+    TRUST_STATES = frozenset({"untrusted"})
+
+    def __init__(self, run, isdir=None) -> None:
+        self._run = run
+        self._isdir = isdir or os.path.isdir
+        self.path = ""                     # the authorized root: whatever was last refreshed
+        self.state = "unknown"
+        self.last_lines: list = []
+        #: The adopt-able marker hint is kept SEPARATE from the state and bound
+        #: to the exact path it was discovered for, so it can never be applied
+        #: to a different root. A plain status refresh clears it.
+        self.adopt_hint_path: "str | None" = None
+
+    # -- read-only ----------------------------------------------------------
+    def refresh(self, path: str, mode: str) -> str:
+        """Read-only. ANY non-empty path ALWAYS runs `destination status`;
+        `isdir`/`mode` only REFINE the diagnosis afterwards, never skip the
+        command. A fresh read invalidates the transient adopt hint."""
+        self.path = path or ""
+        self.adopt_hint_path = None
+        if not self.path:
+            self.state, self.last_lines = "absent", []
+            return self.state
+        code, lines = self._run(dest_status_argv(self.path))
+        self.last_lines = list(lines)
+        state = classify_dest_status(code, lines)
+        # Refine ONLY when the query itself succeeded: a failed `destination
+        # status` (non-zero exit / unrecognized output) must stay "error" and
+        # never be masked as "absent"/"disabled".
+        if state != "error":
+            if not self._isdir(self.path):   # refine: a path we can't see is "not mounted"
+                state = "absent"
+            if mode == "off":                # refine: identity checking is off in config
+                state = "disabled"
+        self.state = state
+        return self.state
+
+    def can_trust(self) -> bool:
+        return self.state in self.TRUST_STATES
+
+    def can_adopt(self) -> bool:
+        # Only when the marker hint was discovered for exactly this root.
+        return self.state == "marker_unadopted" and self.adopt_hint_path == self.path
+
+    # -- mutating (path-, state- and confirmation-gated) --------------------
+    def trust(self, gate: ConfirmationGate, path: str, mode: str) -> DestResult:
+        # The path the caller displayed/authorized must be the one we mutate.
+        if path != self.path:
+            return DestResult(False, "path_mismatch", self.state, [])
+        if not self.can_trust():
+            return DestResult(False, "incompatible_state", self.state, [])
+        if not gate.proceed:
+            return DestResult(False, "cancelled", self.state, [])
+        code, lines = self._run(dest_trust_argv(path))
+        hint = dest_trust_reveals_marker(lines)   # bound to THIS path's attempt
+        self.refresh(path, mode)                  # always re-query — never trust exit 0 alone
+        if self.state == "trusted":
+            return DestResult(True, "ok", "trusted", lines)
+        if hint and self.state == "untrusted":
+            self.state = "marker_unadopted"
+            self.adopt_hint_path = path
+            return DestResult(True, "needs_adopt", "marker_unadopted", lines)
+        return DestResult(True, "error", self.state, lines)
+
+    def prepare_adopt(self, path: str, mode: str) -> bool:
+        """Re-validate immediately before the Adopt confirmation opens. A plain
+        refresh clears the transient hint, so we re-query `destination status`
+        for the captured path and only RESTORE the marker-unadopted state when
+        the re-validation is compatible: the root is still exactly the
+        authorized one, still untrusted (not trusted, not absent/disabled, no
+        error), and previously carried the adopt hint for this same path.
+        Returns True iff Adopt may proceed; otherwise the freshly-queried state
+        stands (and the hint stays cleared)."""
+        if path != self.path:
+            return False
+        had_hint = self.adopt_hint_path == path
+        self.refresh(path, mode)                 # re-query (clears the hint)
+        if had_hint and self.path == path and self.state == "untrusted":
+            self.state = "marker_unadopted"
+            self.adopt_hint_path = path
+            return True
+        return False
+
+    def adopt(self, gate: ConfirmationGate, path: str, mode: str) -> DestResult:
+        # Reject unless the requested path is the authorized root AND the one the
+        # adopt hint was discovered for.
+        if path != self.path or self.adopt_hint_path != path:
+            return DestResult(False, "path_mismatch", self.state, [])
+        if not self.can_adopt():
+            return DestResult(False, "incompatible_state", self.state, [])
+        if not gate.proceed:
+            return DestResult(False, "cancelled", self.state, [])
+        code, lines = self._run(dest_adopt_argv(path))
+        self.refresh(path, mode)                  # re-query after adopt
+        if self.state == "trusted":
+            return DestResult(True, "ok", "trusted", lines)
+        return DestResult(True, "error", self.state, lines)
 
 
 def download_lock_path() -> Path:
@@ -1659,6 +1953,41 @@ class TiddlGui:
 
         self.settings_status = ft.Text("", size=12)
 
+        # --- B1: destination identity (status + trust/adopt) ---
+        if not hasattr(self, "dest_ctl"):
+            self.dest_ctl = DestinationController(self._dest_run)
+        self.dest_status_text = ft.Text(
+            self.t(f"dest_state_{self.dest_ctl.state}"), size=13, selectable=True
+        )
+        self.dest_path_text = ft.Text(
+            self._dest_path() or "—", size=12, color=ft.Colors.OUTLINE, selectable=True
+        )
+        self.dest_check_btn = ft.OutlinedButton(
+            content=self.t("dest_btn_check"), icon=ft.Icons.REFRESH, on_click=self.on_dest_check
+        )
+        self.dest_trust_btn = ft.FilledButton(
+            content=self.t("dest_btn_trust"), icon=ft.Icons.VERIFIED_USER,
+            on_click=self.on_dest_trust, visible=self.dest_ctl.can_trust(),
+        )
+        self.dest_adopt_btn = ft.FilledButton(
+            content=self.t("dest_btn_adopt"), icon=ft.Icons.LINK,
+            on_click=self.on_dest_adopt, visible=self.dest_ctl.can_adopt(),
+        )
+        dest_section_body = [
+            ft.Text(self.t("dest_intro"), size=11, color=ft.Colors.OUTLINE),
+            ft.Row(
+                [ft.Text(self.t("dest_path_label") + ":", size=12, weight=ft.FontWeight.BOLD),
+                 self.dest_path_text],
+                wrap=True, vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+            ft.Row(
+                [ft.Text(self.t("dest_status_label") + ":", size=12, weight=ft.FontWeight.BOLD),
+                 self.dest_status_text],
+                wrap=True, vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+            ft.Row([self.dest_check_btn, self.dest_trust_btn, self.dest_adopt_btn], wrap=True),
+        ]
+
         def section(title: str, controls: list[ft.Control], expanded: bool = True) -> ft.Control:
             """Collapsible section; fields inside stretch to the window width."""
             return ft.ExpansionTile(
@@ -1683,6 +2012,7 @@ class TiddlGui:
             [
                 ft.Container(height=4),
                 section(self.t("sec_folders"), [dl_row, scan_row, video_row, playlist_row]),
+                section(self.t("sec_destination"), dest_section_body, expanded=False),
                 section(
                     self.t("sec_naming"),
                     [
@@ -2085,6 +2415,242 @@ class TiddlGui:
         self.f_m3u_mix.value = "mix" in _m3u
         self.settings_status.value = self.t("reloaded")
         self.refresh()
+
+    # ---- B1: destination-identity handlers -----------------------------
+    def _dest_run(self, argv: list[str]) -> tuple[int, list[str]]:
+        """Run one `tiddl destination …` in-process, returning (exit_code,
+        ANSI-stripped non-empty output lines). The engine is the ONLY thing
+        that reads or writes anchor state — this never touches those files."""
+        lines: list[str] = []
+
+        def on_line(raw: str):
+            s = ANSI_RE.sub("", raw).strip()
+            if s:
+                lines.append(s)
+
+        code = run_tiddl(argv, on_line)
+        return code, lines
+
+    def _dest_path(self) -> str:
+        field = getattr(self, "f_download_path", None)
+        return (field.value or "").strip() if field is not None else ""
+
+    def _dest_mode(self) -> str:
+        mode = self.cfg_dl("destination_identity", "off")
+        return mode if mode in ("off", "strict") else "off"
+
+    def _dest_msg(self, res: "DestResult") -> str:
+        return self.t(_DEST_RES_KEY.get(res.reason, "dest_res_error"))
+
+    def _dest_is_err(self, res: "DestResult") -> bool:
+        return res.reason in ("error", "incompatible_state", "path_mismatch")
+
+    def _dest_render(self, *, busy=None, status_msg=None, status_error: bool = False):
+        """Set every destination-section control property from the controller's
+        current state (plus optional busy + a status-bar message). PURE property
+        mutation — no page.update; the caller performs exactly one update so all
+        of a worker's Flet changes commit together (never piecemeal)."""
+        state = self.dest_ctl.state
+        self.dest_status_text.value = self.t(f"dest_state_{state}")
+        self.dest_status_text.color = {
+            "trusted": ft.Colors.GREEN,
+            "untrusted": ft.Colors.ERROR,
+            "marker_unadopted": ft.Colors.AMBER,
+            "absent": ft.Colors.OUTLINE,
+            "disabled": ft.Colors.OUTLINE,
+            "error": ft.Colors.ERROR,
+        }.get(state, ft.Colors.OUTLINE)
+        self.dest_path_text.value = self.dest_ctl.path or self._dest_path() or "—"
+        self.dest_trust_btn.visible = self.dest_ctl.can_trust()
+        self.dest_adopt_btn.visible = self.dest_ctl.can_adopt()
+        if busy is not None:
+            for b in (self.dest_check_btn, self.dest_trust_btn, self.dest_adopt_btn):
+                b.disabled = busy
+        if status_msg is not None:
+            self.status_text.value = status_msg
+            self.status_text.color = self.pal["error"] if status_error else None
+
+    def _dest_commit(self, **kw):
+        """Schedule EVERY Flet mutation for one op as a single _run_on_ui
+        callback with exactly one page.update — the required batching for
+        worker-thread updates."""
+        def do():
+            self._dest_render(**kw)
+            self.page.update()
+
+        self._run_on_ui(do)
+
+    def on_dest_check(self, e):
+        """Read-only status query. Never mutates trust — always safe to run."""
+        path = self._dest_path()
+        self._dest_render(busy=True, status_msg=self.t("dest_state_checking"))
+        self.page.update()
+        self.page.run_thread(lambda: self._dest_check_worker(path))
+
+    def _dest_check_worker(self, path: str):
+        try:
+            self.dest_ctl.refresh(path, self._dest_mode())
+        except Exception as ex:
+            write_crash("destination status", ex)
+            self.dest_ctl.state = "error"
+        self._dest_commit(busy=False, status_msg=self.t(f"dest_state_{self.dest_ctl.state}"))
+
+    def on_dest_trust(self, e):
+        """Trust the mounted destination. Capture the path NOW, re-query status
+        for exactly that path, then confirm+mutate the SAME path. Never
+        auto-runs — the mutation fires only from the dialog's confirm button."""
+        path = self._dest_path()
+        if not path:
+            self._dest_render(status_msg=self.t("dest_res_incompatible"), status_error=True)
+            self.page.update()
+            return
+        self._dest_render(busy=True, status_msg=self.t("dest_state_checking"))
+        self.page.update()
+        self.page.run_thread(lambda: self._dest_trust_prepare(path))
+
+    def _dest_trust_prepare(self, path: str):
+        try:
+            self.dest_ctl.refresh(path, self._dest_mode())
+        except Exception as ex:
+            write_crash("destination status", ex)
+            self.dest_ctl.state = "error"
+
+        def after():
+            if self.dest_ctl.can_trust():
+                self._dest_render(busy=False)
+                self.page.update()
+                self._open_trust_dialog(path)
+            else:
+                self._dest_render(
+                    busy=False, status_msg=self.t("dest_res_incompatible"), status_error=True
+                )
+                self.page.update()
+
+        self._run_on_ui(after)
+
+    def _open_trust_dialog(self, path: str):
+        gate = ConfirmationGate(1)
+
+        def do_confirm(_):
+            gate.confirm()
+            self.page.pop_dialog()
+            self._dest_render(busy=True, status_msg=self.t("dest_busy"))
+            self.page.update()
+            self.page.run_thread(lambda: self._dest_trust_worker(gate, path))
+
+        def do_cancel(_):
+            gate.cancel()
+            self.page.pop_dialog()
+            self._dest_render(status_msg=self.t("dest_res_cancelled"))
+            self.page.update()
+
+        dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(self.t("dest_trust_title")),
+            content=ft.Text(self.t("dest_trust_q", path=path)),
+            actions=[
+                ft.TextButton(content=self.t("btn_cancel"), on_click=do_cancel),
+                ft.FilledButton(content=self.t("dest_trust_confirm"), on_click=do_confirm),
+            ],
+        )
+        self.page.show_dialog(dlg)
+
+    def _dest_trust_worker(self, gate: "ConfirmationGate", path: str):
+        try:
+            res = self.dest_ctl.trust(gate, path, self._dest_mode())
+        except Exception as ex:
+            write_crash("destination trust", ex)
+            self.dest_ctl.state = "error"
+            res = DestResult(True, "error", "error", [])
+        self._dest_commit(busy=False, status_msg=self._dest_msg(res), status_error=self._dest_is_err(res))
+
+    def on_dest_adopt(self, e):
+        """Adopt an existing destination identity. Re-query status for the
+        captured path BEFORE opening the confirmation (the volume/identity may
+        have changed since the hint was discovered via a Trust attempt), then
+        require DOUBLE human confirmation. Never auto-runs."""
+        path = self._dest_path()
+        if not path:
+            self._dest_render(status_msg=self.t("dest_res_incompatible"), status_error=True)
+            self.page.update()
+            return
+        self._dest_render(busy=True, status_msg=self.t("dest_state_checking"))
+        self.page.update()
+        self.page.run_thread(lambda: self._dest_adopt_prepare(path))
+
+    def _dest_adopt_prepare(self, path: str):
+        """Re-validate on the captured path; only open the Adopt dialogs when
+        `prepare_adopt` confirms the root is still the authorized, still-untrusted
+        one whose marker hint is intact and error-free."""
+        try:
+            ok = self.dest_ctl.prepare_adopt(path, self._dest_mode())
+        except Exception as ex:
+            write_crash("destination status", ex)
+            self.dest_ctl.state = "error"
+            ok = False
+
+        def after():
+            if ok and self.dest_ctl.can_adopt():
+                self._dest_render(busy=False)
+                self.page.update()
+                self._open_adopt_dialogs(path)
+            else:
+                self._dest_render(
+                    busy=False, status_msg=self.t("dest_res_incompatible"), status_error=True
+                )
+                self.page.update()
+
+        self._run_on_ui(after)
+
+    def _open_adopt_dialogs(self, path: str):
+        gate = ConfirmationGate(2)
+
+        def cancel(_):
+            gate.cancel()
+            self.page.pop_dialog()
+            self._dest_render(status_msg=self.t("dest_res_cancelled"))
+            self.page.update()
+
+        def second_confirm(_):
+            gate.confirm()
+            self.page.pop_dialog()
+            self._dest_render(busy=True, status_msg=self.t("dest_busy"))
+            self.page.update()
+            self.page.run_thread(lambda: self._dest_adopt_worker(gate, path))
+
+        def first_confirm(_):
+            gate.confirm()
+            self.page.pop_dialog()
+            dlg2 = ft.AlertDialog(
+                modal=True,
+                title=ft.Text(self.t("dest_adopt_title2")),
+                content=ft.Text(self.t("dest_adopt_q2")),
+                actions=[
+                    ft.TextButton(content=self.t("btn_cancel"), on_click=cancel),
+                    ft.FilledButton(content=self.t("dest_adopt_confirm2"), on_click=second_confirm),
+                ],
+            )
+            self.page.show_dialog(dlg2)
+
+        dlg1 = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(self.t("dest_adopt_title1")),
+            content=ft.Text(self.t("dest_adopt_q1", path=path)),
+            actions=[
+                ft.TextButton(content=self.t("btn_cancel"), on_click=cancel),
+                ft.FilledButton(content=self.t("dest_adopt_confirm1"), on_click=first_confirm),
+            ],
+        )
+        self.page.show_dialog(dlg1)
+
+    def _dest_adopt_worker(self, gate: "ConfirmationGate", path: str):
+        try:
+            res = self.dest_ctl.adopt(gate, path, self._dest_mode())
+        except Exception as ex:
+            write_crash("destination adopt", ex)
+            self.dest_ctl.state = "error"
+            res = DestResult(True, "error", "error", [])
+        self._dest_commit(busy=False, status_msg=self._dest_msg(res), status_error=self._dest_is_err(res))
 
     def on_save_defaults(self, e):
         nums = self.numeric_settings()
