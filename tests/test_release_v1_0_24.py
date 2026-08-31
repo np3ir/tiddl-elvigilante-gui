@@ -10,6 +10,7 @@ tag, Release or publication is implied by any of this.
 import ast
 import os
 import re
+import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHANGELOG = os.path.join(ROOT, "CHANGELOG_1.0.24.md")
@@ -75,6 +76,35 @@ def test_notes_mention_b2_off_and_strict():
     assert "destination_identity" in t
 
 
+def _norm_ws(text):
+    # Markdown wraps prose across lines; collapse whitespace so a content check is
+    # not defeated by an incidental line break inside a phrase.
+    return re.sub(r"\s+", " ", text)
+
+
+def test_notes_state_path_captured_contract_in_both_languages():
+    # The path-capture safety contract must be stated in BOTH the EN and ES notes.
+    t = _norm_ws(_read(NOTES))
+    assert "captured and used exactly for the operation" in t
+    assert "captura y usa exactamente para la operación" in t
+
+
+def test_adopt_revalidation_timing_is_precise_in_both_docs():
+    # Adopt re-validates before OPENING the confirmation flow — not "immediately
+    # before confirming". The precise, parallel EN/ES wording must be present in
+    # both docs, and the over-strict wording must be gone.
+    for path in (CHANGELOG, NOTES):
+        t = _norm_ws(_read(path))
+        assert "before opening the confirmation flow" in t
+        assert "antes de abrir el flujo de confirmación" in t
+        for bad in (
+            "immediately before confirming",
+            "just before confirming",
+            "justo antes de confirmar",
+        ):
+            assert bad not in t, (path, bad)
+
+
 # ---------------------------------------------------------------------------
 # 7 & 8: distinguish public 1.0.23 from unpublished 1.0.24, and never present
 # v1.5.4 as the engine of 1.0.24.
@@ -111,37 +141,29 @@ def test_docs_bind_1_0_24_to_v1_5_5_and_public_1_0_23_to_v1_5_4():
 
 
 # ---------------------------------------------------------------------------
-# AST helpers (module-scope single assignment) — reused for 9 & 11
+# AST guards: reuse the ROBUST single-source binder/checkers from
+# test_engine_pin.py — they detect Assign, AnnAssign (with value) AND AugAssign
+# at module scope (including inside module-level if/try/with), excluding function
+# and class bodies. Reusing them avoids a second, weaker implementation here.
 # ---------------------------------------------------------------------------
-def _module_scope_assignments(source, name):
-    found = []
-
-    class V(ast.NodeVisitor):
-        def visit_FunctionDef(self, node):
-            return
-
-        visit_AsyncFunctionDef = visit_FunctionDef
-
-        def visit_ClassDef(self, node):
-            return
-
-        def visit_Assign(self, node):
-            if any(isinstance(t, ast.Name) and t.id == name for t in node.targets):
-                found.append(node)
-            self.generic_visit(node)
-
-    V().visit(ast.parse(source))
-    return found
+sys.path.insert(0, os.path.join(ROOT, "tests"))
+from test_engine_pin import (  # noqa: E402
+    _app_version_ok,
+    _module_scope_bindings,
+    _tiddl_commit_ok,
+    EXPECTED_APP_VERSION,
+)
 
 
 # ---------------------------------------------------------------------------
 # 9: APP_VERSION — exactly one module-scope assignment, value "1.0.24"
 # ---------------------------------------------------------------------------
 def test_app_version_single_module_assignment_is_1_0_24():
-    binds = _module_scope_assignments(_read(MAIN), "APP_VERSION")
-    assert len(binds) == 1
-    value = binds[0].value
-    assert isinstance(value, ast.Constant) and value.value == "1.0.24"
+    assert EXPECTED_APP_VERSION == "1.0.24"
+    assert _app_version_ok(_read(MAIN))
+    binds = _module_scope_bindings(_read(MAIN), "APP_VERSION")
+    assert len(binds) == 1 and isinstance(binds[0], ast.Assign)
+    assert binds[0].value.value == "1.0.24"
 
 
 # ---------------------------------------------------------------------------
@@ -160,16 +182,44 @@ def test_engine_pin_is_exactly_v1_5_5_commit():
 # 11: TIDDL_COMMIT is derived from _tiddl_commit(), not hardcoded
 # ---------------------------------------------------------------------------
 def test_tiddl_commit_is_a_derived_call_not_hardcoded():
-    binds = _module_scope_assignments(_read(MAIN), "TIDDL_COMMIT")
-    assert len(binds) == 1
-    value = binds[0].value
-    assert (
-        isinstance(value, ast.Call)
-        and isinstance(value.func, ast.Name)
-        and value.func.id == "_tiddl_commit"
-        and not value.args
-        and not value.keywords
-    )
+    assert _tiddl_commit_ok(_read(MAIN))
+
+
+# ---------------------------------------------------------------------------
+# Negative AST guards: a SECOND module-scope binding via AnnAssign / AugAssign /
+# a module-level override must be rejected (this is exactly what an Assign-only
+# guard would miss).
+# ---------------------------------------------------------------------------
+_APP_ASSIGN_THEN_ANNASSIGN = 'APP_VERSION = "1.0.24"\nAPP_VERSION: str = "9.9.9"\n'
+_APP_ASSIGN_THEN_AUGASSIGN = 'APP_VERSION = "1.0.24"\nAPP_VERSION += ".broken"\n'
+_APP_OVERRIDDEN_IN_MODULE_IF = 'APP_VERSION = "1.0.24"\nif True:\n    APP_VERSION = "9.9.9"\n'
+_TIDDL_DERIVED_THEN_ANNASSIGN = 'TIDDL_COMMIT = _tiddl_commit()\nTIDDL_COMMIT: str = "deadbeef"\n'
+_TIDDL_DERIVED_THEN_AUGASSIGN = 'TIDDL_COMMIT = _tiddl_commit()\nTIDDL_COMMIT += "x"\n'
+
+
+def test_app_version_annassign_second_binding_is_rejected():
+    assert _app_version_ok(_APP_ASSIGN_THEN_ANNASSIGN) is False
+    assert len(_module_scope_bindings(_APP_ASSIGN_THEN_ANNASSIGN, "APP_VERSION")) == 2
+
+
+def test_app_version_augassign_second_binding_is_rejected():
+    assert _app_version_ok(_APP_ASSIGN_THEN_AUGASSIGN) is False
+    assert len(_module_scope_bindings(_APP_ASSIGN_THEN_AUGASSIGN, "APP_VERSION")) == 2
+
+
+def test_app_version_module_level_if_override_is_rejected():
+    assert _app_version_ok(_APP_OVERRIDDEN_IN_MODULE_IF) is False
+    assert len(_module_scope_bindings(_APP_OVERRIDDEN_IN_MODULE_IF, "APP_VERSION")) == 2
+
+
+def test_tiddl_commit_annassign_hardcode_second_binding_is_rejected():
+    assert _tiddl_commit_ok(_TIDDL_DERIVED_THEN_ANNASSIGN) is False
+    assert len(_module_scope_bindings(_TIDDL_DERIVED_THEN_ANNASSIGN, "TIDDL_COMMIT")) == 2
+
+
+def test_tiddl_commit_augassign_second_binding_is_rejected():
+    assert _tiddl_commit_ok(_TIDDL_DERIVED_THEN_AUGASSIGN) is False
+    assert len(_module_scope_bindings(_TIDDL_DERIVED_THEN_AUGASSIGN, "TIDDL_COMMIT")) == 2
 
 
 # ---------------------------------------------------------------------------

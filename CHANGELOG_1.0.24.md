@@ -31,9 +31,10 @@
 - **Trust mounted destination** shows the **exact path** and requires **one
   explicit confirmation**; **Adopt existing identity** requires **double
   confirmation** and is offered only in the appropriate state.
-- The path is **captured and used exactly** for the operation; Adopt **re-validates
-  the status just before confirming**; every mutation **re-queries the status
-  afterwards**; and **Trust/Adopt never run automatically**.
+- The path is **captured and used exactly** for the operation. Adopt **re-validates
+  the status before opening the confirmation flow and re-queries the status after
+  the operation**; every mutation re-queries the status afterwards; and
+  **Trust/Adopt never run automatically**.
 
 ### B2 — Identity mode selector
 
@@ -81,9 +82,10 @@
 - **Confiar destino montado** muestra la **ruta exacta** y exige **una confirmación
   explícita**; **Adoptar identidad existente** exige **doble confirmación** y solo
   se ofrece en el estado apropiado.
-- La ruta se **captura y usa exactamente** para la operación; Adopt **revalida el
-  estado justo antes de confirmar**; cada mutación **vuelve a consultar el estado
-  después**; y **Trust/Adopt nunca se ejecutan automáticamente**.
+- La ruta se **captura y usa exactamente** para la operación. Adoptar **revalida el
+  estado antes de abrir el flujo de confirmación y vuelve a consultarlo después de
+  la operación**; cada mutación vuelve a consultar el estado después; y
+  **Trust/Adopt nunca se ejecutan automáticamente**.
 
 ### B2 — Selector del modo de identidad
 

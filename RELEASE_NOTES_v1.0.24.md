@@ -21,10 +21,11 @@
   **untrusted**, has a **marker pending adoption**, is **absent/not mounted**, is
   **disabled**, or is in an **error** state — read through the engine, never by
   touching the anchor files.
-- **Trust** shows the exact path and needs **one explicit confirmation**;
-  **Adopt** needs **double confirmation**, re-validates the status immediately
-  before confirming, and re-queries the status after the operation. **Trust and
-  Adopt never run automatically.**
+- **Trust** shows the exact path; the path is **captured and used exactly for the
+  operation** and needs **one explicit confirmation**. **Adopt** needs **double
+  confirmation**; Adopt **re-validates the status before opening the confirmation
+  flow and re-queries the status after the operation**. **Trust and Adopt never run
+  automatically.**
 
 **Identity mode selector (B2).**
 
@@ -61,10 +62,11 @@
   confiable**, tiene un **marcador pendiente de adopción**, está **ausente/no
   montado**, está **desactivado** o en estado de **error** — consultado a través del
   motor, nunca tocando los archivos de anclas.
-- **Confiar** muestra la ruta exacta y necesita **una confirmación explícita**;
-  **Adoptar** necesita **doble confirmación**, revalida el estado justo antes de
-  confirmar y vuelve a consultar el estado tras la operación. **Trust y Adopt nunca
-  se ejecutan automáticamente.**
+- **Confiar** muestra la ruta exacta; la ruta se **captura y usa exactamente para
+  la operación** y necesita **una confirmación explícita**. **Adoptar** necesita
+  **doble confirmación**; Adoptar **revalida el estado antes de abrir el flujo de
+  confirmación y vuelve a consultarlo después de la operación**. **Trust y Adopt
+  nunca se ejecutan automáticamente.**
 
 **Selector del modo de identidad (B2).**
 
