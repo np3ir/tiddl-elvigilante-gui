@@ -2,8 +2,13 @@
 
 ## What's new
 
-- **Bundled engine updated to v1.5.4.** The GUI now pins the exact published
-  engine commit `b25ff9ce8d69fbb4f2d91d5cfbc36e6568c5e881`.
+- **Bundled engine updated to v1.5.5.** The GUI now pins the exact published
+  engine commit `13c4e9151cc3fb41954ca5312f11c5d34e2ad181`.
+- **Cross-folder `Exists (Alt)` fix (v1.5.5).** The skip-existing check is now
+  scoped to each track's own folder, so a Dolby Atmos track is no longer skipped
+  because a same-titled FLAC lives in a different album. The real on-disk
+  name/casing is preserved, and an Atmos request treats Atmos as a distinct
+  modality (a stereo file no longer satisfies it).
 - **Fewer HTTP 429 responses in large high-quality runs.** Playlist, artist,
   album and credit enumeration stays on the TV client; the HiRes client is used
   per track only when the requested quality requires it. Both clients share one
@@ -22,8 +27,13 @@
 
 ## Novedades
 
-- **Motor embebido actualizado a v1.5.4.** La GUI fija ahora el commit publicado
-  exacto del motor: `b25ff9ce8d69fbb4f2d91d5cfbc36e6568c5e881`.
+- **Motor embebido actualizado a v1.5.5.** La GUI fija ahora el commit publicado
+  exacto del motor: `13c4e9151cc3fb41954ca5312f11c5d34e2ad181`.
+- **Corrección de `Exists (Alt)` entre carpetas (v1.5.5).** La comprobación de
+  «ya existe» se limita ahora a la carpeta propia de cada pista, de modo que una
+  pista Dolby Atmos ya no se omite porque exista un FLAC homónimo en otro álbum.
+  Se preserva el nombre/casing real en disco, y una solicitud Atmos trata Atmos
+  como una modalidad distinta (un archivo estéreo ya no la satisface).
 - **Menos respuestas HTTP 429 en corridas grandes de alta calidad.** La
   enumeración de playlists, artistas, álbumes y créditos permanece en el cliente
   TV; el cliente HiRes se usa por pista únicamente cuando la calidad solicitada
