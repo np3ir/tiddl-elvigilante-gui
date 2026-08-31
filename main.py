@@ -401,6 +401,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "dest_res_error": "The operation did not result in a trusted status.",
         "dest_res_cancelled": "Cancelled — nothing was changed.",
         "dest_busy": "Working…",
+        "dest_mode_label": "Identity checking",
+        "dest_mode_off": "Off",
+        "dest_mode_strict": "Strict",
+        "dest_mode_help": "Off allows downloads without verifying the destination volume identity. Strict requires the mounted destination to match a trusted identity before writing. Changing this setting does not trust, adopt, or remove any identity.",
         "m3u_save_cb": "Generate .m3u playlist files",
         "m3u_allowed_lbl": "Generate for:",
         # --- new: naming extras ---
@@ -655,6 +659,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "dest_res_error": "La operación no resultó en un estado confiable.",
         "dest_res_cancelled": "Cancelado — no se cambió nada.",
         "dest_busy": "Trabajando…",
+        "dest_mode_label": "Comprobación de identidad",
+        "dest_mode_off": "Desactivada",
+        "dest_mode_strict": "Estricta",
+        "dest_mode_help": "Desactivada permite descargar sin verificar la identidad del volumen de destino. Estricta exige que el destino montado coincida con una identidad confiable antes de escribir. Cambiar este ajuste no confía, adopta ni elimina ninguna identidad.",
         "m3u_save_cb": "Generar archivos de lista .m3u",
         "m3u_allowed_lbl": "Generar para:",
         # --- new: naming extras ---
@@ -857,6 +865,9 @@ STASH_FIELDS = [
     "f_video_quality", "f_hires_client", "f_rpm", "f_concurrency",
     "f_max_tracks", "f_rewrite", "f_update_mtime", "f_exclude_compilations",
     "f_exclude_live", "f_audio_mode", "f_quality_policy", "f_resume",
+    # B2: destination-identity mode selector (preserve an unsaved choice across
+    # a language switch / UI rebuild).
+    "f_dest_mode",
     # m3u
     "f_m3u_save", "f_m3u_album", "f_m3u_playlist", "f_m3u_mix",
 ]
@@ -1014,6 +1025,28 @@ _DEST_RES_KEY = {
     "cancelled": "dest_res_cancelled",
     "error": "dest_res_error",
 }
+
+# B2: the only two values CONFIG.download.destination_identity may take.
+IDENTITY_MODES = ("off", "strict")
+
+
+def _norm_identity(value) -> str:
+    """Normalize any raw value to a valid destination-identity mode. Unknown,
+    empty, non-string or otherwise invalid input is conservatively treated as
+    "off" (identity checking disabled) — never silently promoted to strict."""
+    if isinstance(value, str) and value.strip().lower() in IDENTITY_MODES:
+        return value.strip().lower()
+    return "off"
+
+
+def identity_from_config(cfg) -> str:
+    """The persisted destination_identity from a loaded tiddl config dict,
+    normalized. Used to seed and to restore the GUI selector."""
+    try:
+        dl = cfg.get("download", {}) if isinstance(cfg, dict) else {}
+        return _norm_identity(dl.get("destination_identity", "off"))
+    except Exception:
+        return "off"
 
 
 def dest_trust_reveals_marker(lines) -> bool:
@@ -1571,6 +1604,13 @@ class TiddlGui:
                 self.noskip_cb.value = value
             elif hasattr(self, name):
                 getattr(self, name).value = value
+        # B2: the stash restores f_dest_mode.value by direct assignment, which
+        # does NOT fire on_dest_mode_change — resync the controller state to the
+        # restored (normalized) mode so the shown selector and the B1 state can
+        # never diverge. No engine command; no auto status/Trust/Adopt.
+        if hasattr(self, "f_dest_mode") and hasattr(self, "dest_ctl"):
+            self._apply_destination_mode_state()
+            self._dest_render()
         self.refresh()
 
     def build_download_tab(self) -> ft.Control:
@@ -1953,9 +1993,24 @@ class TiddlGui:
 
         self.settings_status = ft.Text("", size=12)
 
-        # --- B1: destination identity (status + trust/adopt) ---
+        # --- B1: destination identity (status + trust/adopt) + B2 mode selector ---
         if not hasattr(self, "dest_ctl"):
             self.dest_ctl = DestinationController(self._dest_run)
+        # B2: reflect the persisted mode in the initial displayed B1 state, ONLY
+        # on the first build (a language rebuild preserves a prior checked state).
+        _initial_mode = identity_from_config(self.cfg)
+        if self.dest_ctl.state == "unknown":
+            self.dest_ctl.state = "disabled" if _initial_mode == "off" else "unknown"
+        self.f_dest_mode = ft.Dropdown(
+            label=self.t("dest_mode_label"),
+            width=220,
+            value=_initial_mode,
+            options=[
+                ft.DropdownOption(key="off", text=self.t("dest_mode_off")),
+                ft.DropdownOption(key="strict", text=self.t("dest_mode_strict")),
+            ],
+            on_change=self.on_dest_mode_change,
+        )
         self.dest_status_text = ft.Text(
             self.t(f"dest_state_{self.dest_ctl.state}"), size=13, selectable=True
         )
@@ -1975,6 +2030,8 @@ class TiddlGui:
         )
         dest_section_body = [
             ft.Text(self.t("dest_intro"), size=11, color=ft.Colors.OUTLINE),
+            ft.Row([self.f_dest_mode], wrap=True, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            ft.Text(self.t("dest_mode_help"), size=11, color=ft.Colors.OUTLINE),
             ft.Row(
                 [ft.Text(self.t("dest_path_label") + ":", size=12, weight=ft.FontWeight.BOLD),
                  self.dest_path_text],
@@ -2413,6 +2470,10 @@ class TiddlGui:
         self.f_m3u_album.value = "album" in _m3u
         self.f_m3u_playlist.value = "playlist" in _m3u
         self.f_m3u_mix.value = "mix" in _m3u
+        # B2: restore the persisted identity mode and invalidate any stale B1
+        # state (a fresh Check is required under strict; off shows disabled).
+        self._apply_destination_mode_state(identity_from_config(self.cfg))
+        self._dest_render()
         self.settings_status.value = self.t("reloaded")
         self.refresh()
 
@@ -2436,8 +2497,46 @@ class TiddlGui:
         return (field.value or "").strip() if field is not None else ""
 
     def _dest_mode(self) -> str:
-        mode = self.cfg_dl("destination_identity", "off")
-        return mode if mode in ("off", "strict") else "off"
+        """The effective identity mode = the live selector (B2), normalized;
+        the persisted config is only the fallback before the selector exists.
+        This is the single value fed to B1 status/trust/adopt and pushed to
+        CONFIG.download.destination_identity by apply_runtime_config()."""
+        field = getattr(self, "f_dest_mode", None)
+        if field is not None:
+            return _norm_identity(field.value)
+        return _norm_identity(self.cfg_dl("destination_identity", "off"))
+
+    def _apply_destination_mode_state(self, mode=None):
+        """Single source of truth for the B2 mode → B1-state transition. Normalize
+        the mode (from the argument, else the live selector), pin the selector to
+        that normalized value, and invalidate B1 accordingly — off ⇒ "disabled",
+        strict ⇒ "unknown" (a fresh Check is required) — always clearing any adopt
+        hint. Runs NO engine command (no status/trust/adopt) and does not render;
+        callers render. Used by the selector's on_change AND by the reload/rebuild
+        restores, so the shown selector value and the controller state can never
+        diverge (e.g. a stash restore assigns `.value` directly, which does not
+        fire on_change)."""
+        mode = _norm_identity(
+            mode if mode is not None else getattr(self.f_dest_mode, "value", None)
+        )
+        self.f_dest_mode.value = mode
+        self.dest_ctl.state = "disabled" if mode == "off" else "unknown"
+        self.dest_ctl.adopt_hint_path = None
+        return mode
+
+    def on_dest_mode_change(self, e):
+        """B2: the identity-mode selector changed. Invalidate any stale B1 state
+        so mutating actions can't fire against an outdated check, and NEVER run
+        an engine command here (no status, no trust, no adopt) — the switch
+        itself must never trust, adopt, create or remove any identity.
+
+        - off  → show "disabled"; Trust/Adopt unavailable.
+        - strict → mark "not checked yet"; the user must Check again before any
+          mutating action is offered (off→strict re-requires a fresh check).
+        """
+        self._apply_destination_mode_state()
+        self._dest_render(status_msg=self.t(f"dest_state_{self.dest_ctl.state}"))
+        self.page.update()
 
     def _dest_msg(self, res: "DestResult") -> str:
         return self.t(_DEST_RES_KEY.get(res.reason, "dest_res_error"))
@@ -2704,6 +2803,8 @@ class TiddlGui:
             dl["exclude_compilations"] = bool(self.f_exclude_compilations.value)
             dl["exclude_live_albums"] = bool(self.f_exclude_live.value)
             dl["update_mtime"] = bool(self.f_update_mtime.value)
+            # B2: persist only a normalized off/strict; never touch anchor files.
+            dl["destination_identity"] = self._dest_mode()
             for key, field in [
                 ("download_path", self.f_download_path),
                 ("scan_path", self.f_scan_path),
@@ -3199,6 +3300,9 @@ class TiddlGui:
             CONFIG.download.exclude_compilations = bool(self.f_exclude_compilations.value)
             CONFIG.download.exclude_live_albums = bool(self.f_exclude_live.value)
             CONFIG.download.max_tracks_per_session = max(0, _int(self.f_max_tracks.value, 0))
+            # B2: feed the selected identity mode to the SAME CONFIG the embedded
+            # engine reads (normalized off/strict). No CLI flag — CONFIG mutation.
+            CONFIG.download.destination_identity = self._dest_mode()
 
             CONFIG.m3u.save = bool(self.f_m3u_save.value)
             CONFIG.m3u.allowed = [
