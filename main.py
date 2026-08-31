@@ -1100,10 +1100,14 @@ class DestinationController:
         code, lines = self._run(dest_status_argv(self.path))
         self.last_lines = list(lines)
         state = classify_dest_status(code, lines)
-        if not self._isdir(self.path):     # refine: a path we can't see is "not mounted"
-            state = "absent"
-        if mode == "off":                  # refine: identity checking is off in config
-            state = "disabled"
+        # Refine ONLY when the query itself succeeded: a failed `destination
+        # status` (non-zero exit / unrecognized output) must stay "error" and
+        # never be masked as "absent"/"disabled".
+        if state != "error":
+            if not self._isdir(self.path):   # refine: a path we can't see is "not mounted"
+                state = "absent"
+            if mode == "off":                # refine: identity checking is off in config
+                state = "disabled"
         self.state = state
         return self.state
 
@@ -1133,6 +1137,25 @@ class DestinationController:
             self.adopt_hint_path = path
             return DestResult(True, "needs_adopt", "marker_unadopted", lines)
         return DestResult(True, "error", self.state, lines)
+
+    def prepare_adopt(self, path: str, mode: str) -> bool:
+        """Re-validate immediately before the Adopt confirmation opens. A plain
+        refresh clears the transient hint, so we re-query `destination status`
+        for the captured path and only RESTORE the marker-unadopted state when
+        the re-validation is compatible: the root is still exactly the
+        authorized one, still untrusted (not trusted, not absent/disabled, no
+        error), and previously carried the adopt hint for this same path.
+        Returns True iff Adopt may proceed; otherwise the freshly-queried state
+        stands (and the hint stays cleared)."""
+        if path != self.path:
+            return False
+        had_hint = self.adopt_hint_path == path
+        self.refresh(path, mode)                 # re-query (clears the hint)
+        if had_hint and self.path == path and self.state == "untrusted":
+            self.state = "marker_unadopted"
+            self.adopt_hint_path = path
+            return True
+        return False
 
     def adopt(self, gate: ConfirmationGate, path: str, mode: str) -> DestResult:
         # Reject unless the requested path is the authorized root AND the one the
@@ -2542,14 +2565,44 @@ class TiddlGui:
         self._dest_commit(busy=False, status_msg=self._dest_msg(res), status_error=self._dest_is_err(res))
 
     def on_dest_adopt(self, e):
-        """Adopt an existing destination identity — DOUBLE explicit human
-        confirmation, available only in the marker-unadopted state discovered
-        for THIS exact path, and never auto-run."""
+        """Adopt an existing destination identity. Re-query status for the
+        captured path BEFORE opening the confirmation (the volume/identity may
+        have changed since the hint was discovered via a Trust attempt), then
+        require DOUBLE human confirmation. Never auto-runs."""
         path = self._dest_path()
-        if not self.dest_ctl.can_adopt() or path != self.dest_ctl.path:
+        if not path:
             self._dest_render(status_msg=self.t("dest_res_incompatible"), status_error=True)
             self.page.update()
             return
+        self._dest_render(busy=True, status_msg=self.t("dest_state_checking"))
+        self.page.update()
+        self.page.run_thread(lambda: self._dest_adopt_prepare(path))
+
+    def _dest_adopt_prepare(self, path: str):
+        """Re-validate on the captured path; only open the Adopt dialogs when
+        `prepare_adopt` confirms the root is still the authorized, still-untrusted
+        one whose marker hint is intact and error-free."""
+        try:
+            ok = self.dest_ctl.prepare_adopt(path, self._dest_mode())
+        except Exception as ex:
+            write_crash("destination status", ex)
+            self.dest_ctl.state = "error"
+            ok = False
+
+        def after():
+            if ok and self.dest_ctl.can_adopt():
+                self._dest_render(busy=False)
+                self.page.update()
+                self._open_adopt_dialogs(path)
+            else:
+                self._dest_render(
+                    busy=False, status_msg=self.t("dest_res_incompatible"), status_error=True
+                )
+                self.page.update()
+
+        self._run_on_ui(after)
+
+    def _open_adopt_dialogs(self, path: str):
         gate = ConfirmationGate(2)
 
         def cancel(_):

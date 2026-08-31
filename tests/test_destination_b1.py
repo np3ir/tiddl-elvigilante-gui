@@ -471,10 +471,13 @@ class UIProbe:
     _dest_check_worker = main.TiddlGui._dest_check_worker
     _dest_trust_worker = main.TiddlGui._dest_trust_worker
     _dest_adopt_worker = main.TiddlGui._dest_adopt_worker
+    _dest_adopt_prepare = main.TiddlGui._dest_adopt_prepare
+    _open_adopt_dialogs = main.TiddlGui._open_adopt_dialogs
 
     def __init__(self, ctl):
         self.dest_ctl = ctl
         self.updates = 0
+        self.dialogs_shown = 0
         self.scheduled = []
         ns = types.SimpleNamespace
         self.dest_status_text = ns(value=None, color=None)
@@ -483,7 +486,12 @@ class UIProbe:
         self.dest_check_btn = ns(disabled=False, visible=False)
         self.dest_trust_btn = ns(disabled=False, visible=False)
         self.dest_adopt_btn = ns(disabled=False, visible=False)
-        self.page = ns(update=self._update)
+        self.page = ns(
+            update=self._update,
+            show_dialog=self._show_dialog,
+            pop_dialog=lambda: None,
+            run_thread=lambda fn: None,
+        )
 
     def _dest_mode(self):
         return "strict"
@@ -493,6 +501,9 @@ class UIProbe:
 
     def _update(self, *a, **k):
         self.updates += 1
+
+    def _show_dialog(self, _dlg):
+        self.dialogs_shown += 1
 
     def _run_on_ui(self, fn):
         self.scheduled.append(fn)  # DEFER — never executed inline
@@ -532,3 +543,116 @@ def test_adopt_worker_batches_ui():
     g.confirm()
     probe._dest_adopt_worker(g, PATH)
     _assert_single_batched_update(probe)
+
+
+# ---------------------------------------------------------------------------
+# ROUND-2 FINDING 1: a `destination status` failure is never masked by a
+# refinement — a non-zero exit / unrecognized output stays "error" regardless
+# of isdir or off-mode.
+# ---------------------------------------------------------------------------
+def test_nonzero_status_with_absent_path_stays_error():
+    ctl, eng = make("unknown_root", isdir=False)
+    eng.status_code = 2
+    assert ctl.refresh(PATH, "strict") == "error"
+
+
+def test_nonzero_status_in_off_mode_stays_error():
+    ctl, eng = make("trusted")
+    eng.status_code = 2
+    assert ctl.refresh(PATH, "off") == "error"
+
+
+def test_unrecognized_output_with_absent_path_stays_error():
+    ctl, eng = make(isdir=False)
+    eng.status_lines = ["garbled output with no recognizable reason"]
+    assert ctl.refresh(PATH, "strict") == "error"
+
+
+def test_unrecognized_output_in_off_mode_stays_error():
+    ctl, eng = make()
+    eng.status_lines = ["garbled output with no recognizable reason"]
+    assert ctl.refresh(PATH, "off") == "error"
+
+
+def test_successful_status_still_refines_to_absent_and_disabled():
+    # The guard must not stop refinement when the query DID succeed.
+    ctl, eng = make("unknown_root", isdir=False)
+    assert ctl.refresh(PATH, "strict") == "absent"
+    ctl2, _ = make("trusted")
+    assert ctl2.refresh(PATH, "off") == "disabled"
+
+
+# ---------------------------------------------------------------------------
+# ROUND-2 FINDING 2: Adopt re-validates (re-queries status) BEFORE opening the
+# confirmation; the hint is restored only when the re-check is compatible.
+# ---------------------------------------------------------------------------
+def test_prepare_adopt_requeries_and_restores_when_still_unadopted():
+    ctl, eng = make("unknown_root")
+    reach_marker_unadopted(ctl, eng)
+    before = len(status_calls(eng))
+    ok = ctl.prepare_adopt(PATH, "strict")
+    assert ok is True and ctl.can_adopt() is True
+    assert len(status_calls(eng)) == before + 1  # a fresh status query ran
+
+
+def test_prepare_adopt_refuses_and_blocks_command_if_now_trusted():
+    ctl, eng = make("unknown_root")
+    reach_marker_unadopted(ctl, eng)
+    eng.status_reason = "trusted"  # identity/volume changed under us
+    ok = ctl.prepare_adopt(PATH, "strict")
+    assert ok is False and ctl.can_adopt() is False and ctl.state == "trusted"
+    # Even if adopt were attempted anyway, no --adopt-existing runs.
+    g = main.ConfirmationGate(2)
+    g.confirm()
+    g.confirm()
+    res = ctl.adopt(g, PATH, "strict")
+    assert res.ran is False
+    assert adopt_calls(eng) == []
+
+
+def test_prepare_adopt_refuses_on_status_error():
+    ctl, eng = make("unknown_root")
+    reach_marker_unadopted(ctl, eng)
+    eng.status_code = 2  # the re-query fails
+    ok = ctl.prepare_adopt(PATH, "strict")
+    assert ok is False and ctl.state == "error" and ctl.can_adopt() is False
+
+
+def test_prepare_adopt_refuses_if_volume_unmounted_before_confirm():
+    ctl, eng = make("unknown_root")
+    reach_marker_unadopted(ctl, eng)
+    ctl._isdir = lambda _p: False  # volume vanished before confirming
+    ok = ctl.prepare_adopt(PATH, "strict")
+    assert ok is False and ctl.can_adopt() is False and ctl.state == "absent"
+
+
+def test_prepare_adopt_refuses_on_path_mismatch_without_querying():
+    ctl, eng = make("unknown_root")
+    reach_marker_unadopted(ctl, eng)
+    before = list(eng.calls)
+    ok = ctl.prepare_adopt("/other", "strict")
+    assert ok is False
+    assert eng.calls == before  # a non-authorized path is never queried
+
+
+def test_adopt_prepare_opens_no_dialog_when_state_changed():
+    ctl, eng = make("unknown_root")
+    reach_marker_unadopted(ctl, eng)
+    eng.status_reason = "trusted"  # changed between hint discovery and Adopt
+    probe = UIProbe(ctl)
+    probe._dest_adopt_prepare(PATH)
+    assert len(probe.scheduled) == 1
+    probe.scheduled[0]()  # run the single batched UI callback
+    assert probe.dialogs_shown == 0  # no adopt dialog opened
+    assert adopt_calls(eng) == []  # and no --adopt-existing ran
+
+
+def test_adopt_prepare_opens_dialog_when_still_unadopted():
+    ctl, eng = make("unknown_root")
+    reach_marker_unadopted(ctl, eng)
+    probe = UIProbe(ctl)
+    probe._dest_adopt_prepare(PATH)
+    assert len(probe.scheduled) == 1
+    probe.scheduled[0]()
+    assert probe.dialogs_shown == 1  # the first adopt confirmation opened
+    assert adopt_calls(eng) == []  # opening a dialog runs no mutation
