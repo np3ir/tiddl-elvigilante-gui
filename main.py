@@ -1049,6 +1049,29 @@ def identity_from_config(cfg) -> str:
         return "off"
 
 
+def build_dest_mode_dropdown(label, value, off_text, strict_text, on_change):
+    """Build the B2 destination-identity mode selector (off/strict).
+
+    The change handler is attached AFTER construction, as an attribute, because
+    the bundled Flet (0.86.1) does NOT accept `on_change` as a `Dropdown`
+    constructor keyword (passing it raises `TypeError` and crashes the settings
+    tab on startup). This mirrors the pattern already used for `f_cover_save`
+    (`self.f_cover_save.on_change = cover_save_changed`). Keeping the whole
+    selector construction in one place lets a real-Flet test exercise it and
+    catch any regression that moves `on_change` back into the constructor."""
+    dd = ft.Dropdown(
+        label=label,
+        width=220,
+        value=value,
+        options=[
+            ft.DropdownOption(key="off", text=off_text),
+            ft.DropdownOption(key="strict", text=strict_text),
+        ],
+    )
+    dd.on_change = on_change
+    return dd
+
+
 def dest_trust_reveals_marker(lines) -> bool:
     """A `trust --confirm-mounted` that met a not-yet-adopted marker (or an id
     mismatch) exits non-zero WITHOUT mutating and tells us to re-run with
@@ -2001,15 +2024,12 @@ class TiddlGui:
         _initial_mode = identity_from_config(self.cfg)
         if self.dest_ctl.state == "unknown":
             self.dest_ctl.state = "disabled" if _initial_mode == "off" else "unknown"
-        self.f_dest_mode = ft.Dropdown(
-            label=self.t("dest_mode_label"),
-            width=220,
-            value=_initial_mode,
-            options=[
-                ft.DropdownOption(key="off", text=self.t("dest_mode_off")),
-                ft.DropdownOption(key="strict", text=self.t("dest_mode_strict")),
-            ],
-            on_change=self.on_dest_mode_change,
+        self.f_dest_mode = build_dest_mode_dropdown(
+            self.t("dest_mode_label"),
+            _initial_mode,
+            self.t("dest_mode_off"),
+            self.t("dest_mode_strict"),
+            self.on_dest_mode_change,
         )
         self.dest_status_text = ft.Text(
             self.t(f"dest_state_{self.dest_ctl.state}"), size=13, selectable=True

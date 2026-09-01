@@ -39,6 +39,21 @@ Authoritative technical state is recorded in its
   to **1.0.24** in source; **no** GUI artifact has been built, installed, or published from it — the
   public release is still **1.0.23**. This is the authoritative engine pin for the 1.0.24 source and any
   future build.
+- **v1.0.24 first Windows build — reproducible but functionally INVALID (2026-08-31):** the build from
+  source `07de0808e387e3ff5f0130bd4e4d42a5e96b49fd` produced deterministic, hash-verified artifacts, but the
+  isolated smoke **failed before rendering the UI**: the GUI crashed on startup building the Settings tab with
+  `TypeError: Dropdown.__init__() got an unexpected keyword argument 'on_change'`. The B2 selector had been
+  built as `ft.Dropdown(..., on_change=...)`, which the bundled **Flet 0.86.1** rejects as a constructor
+  keyword; the handler must be attached after construction (as already done for `f_cover_save`). The offline
+  suite missed it because it stubs controls and never instantiates a real `ft.Dropdown`. **All prior-hash
+  v1.0.24 artifacts (EXE / provenance / installer / portable) are REJECTED and must not be published**;
+  they are preserved for audit under `C:\tiddl-release\_rejected\v1.0.24-startup-crash-dropdown-on-change\`.
+  The **public 1.0.23 (engine v1.5.4, no B2) is unaffected.** v1.0.24 keeps its version number because it was
+  never published. **Fix (branch `fix/gui-b2-dropdown-flet-compat`, base `07de080`, APP_VERSION and engine pin
+  unchanged):** the selector is built through a small `build_dest_mode_dropdown(...)` helper that binds
+  `on_change` after construction, plus real-Flet 0.86.1 tests (constructor rejects the kwarg; the helper builds
+  a real control and preserves value/options) and an AST guard, so a Windows rebuild + re-smoke are required
+  before any future 1.0.24 publication.
 - _(published historical release)_ GUI 1.0.22 pinned engine
   `3f80152d26f7b3fefbd5b3de077cbd4775648f0e` (v1.5.3). Its published artifacts and hashes remain
   unchanged; do not treat the 1.0.23 source pin as part of those binaries.
