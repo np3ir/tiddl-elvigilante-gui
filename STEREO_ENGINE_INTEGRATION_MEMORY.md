@@ -24,7 +24,7 @@ Authoritative technical state is recorded in its
   the exit code) and the earlier v1.5.0–v1.5.2 work: giant-run hardening (429 breaker, bounded-memory
   pool, `--resume` checkpoint), the quality cascade with Atmos + FLAC-over-Atmos, and the `-q atmos` and
   resume-signature fixes.
-- **CURRENT SOURCE (GUI 1.0.24 — prepared, NOT built/installed/published):** `requirements.txt` pins
+- **CURRENT SOURCE (GUI 1.0.24 — source prepared; first Windows build REJECTED after smoke; not published):** `requirements.txt` pins
   engine **`13c4e9151cc3fb41954ca5312f11c5d34e2ad181`** (release **v1.5.5**), which adds the cross-folder
   `Exists (Alt)` / Dolby Atmos skip fix on top of v1.5.4: skip-existing is scoped to each track's own
   folder (a same-titled FLAC in another album no longer masks an Atmos track), the real on-disk
@@ -36,9 +36,10 @@ Authoritative technical state is recorded in its
   mutation, never auto-run) and **B2** (a `destination_identity` selector `off`/`strict`, persisted in the
   engine config and synced to the embedded engine before each run; changing the mode never creates,
   adopts, or removes identity, and switching to `strict` requires a fresh check). `APP_VERSION` is bumped
-  to **1.0.24** in source; **no** GUI artifact has been built, installed, or published from it — the
-  public release is still **1.0.23**. This is the authoritative engine pin for the 1.0.24 source and any
-  future build.
+  to **1.0.24** in source. The GUI source is 1.0.24; its first Windows artifacts **were built** from this
+  source but were **rejected** after the isolated startup smoke (see "v1.0.24 first Windows build" below), so
+  **no valid v1.0.24 artifact has been installed or published**. The public release remains **1.0.23**. This
+  is the authoritative engine pin for the 1.0.24 source and any future build.
 - **v1.0.24 first Windows build — reproducible but functionally INVALID (2026-08-31):** the build from
   source `07de0808e387e3ff5f0130bd4e4d42a5e96b49fd` produced deterministic, hash-verified artifacts, but the
   isolated smoke **failed before rendering the UI**: the GUI crashed on startup building the Settings tab with

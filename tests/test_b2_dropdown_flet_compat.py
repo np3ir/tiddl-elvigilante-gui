@@ -16,6 +16,7 @@ pass against the fixed post-construction binding.
 import ast
 import importlib.metadata as _md
 import os
+import re
 import sys
 
 import pytest
@@ -27,18 +28,106 @@ import main  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MAIN_PY = os.path.join(ROOT, "main.py")
+REQUIREMENTS = os.path.join(ROOT, "requirements.txt")
 
 
-# --- the Flet version under test matches the one the build packages ---------
-def test_flet_version_is_the_bundled_one():
-    """These tests only prove compatibility for the Flet the build ships. If the
-    environment's Flet drifts away from 0.86.x the guarantee no longer holds and
-    the coupling must be revisited (the build must not silently move Flet)."""
-    ver = _md.version("flet")
-    assert ver.startswith("0.86."), (
-        f"expected the build-bundled Flet 0.86.x, got {ver!r}; the real-ctor "
-        "assertions below are only valid for the packaged version"
+# --- the Flet under test is EXACTLY the one requirements.txt pins -----------
+# These real-ctor assertions only prove compatibility for the Flet the build
+# actually packages. requirements.txt pins it with `flet==0.86.1`, so the test
+# reads that exact pin from the file (no hand-maintained duplicate constant) and
+# demands the installed version equal it exactly — a prefix like 0.86.x would let
+# 0.86.0 / 0.86.2 through, which are NOT the packaged version.
+def _read(path):
+    with open(path, "r", encoding="utf-8") as fh:
+        return fh.read()
+
+
+def _effective_requirement_lines(text):
+    """Yield requirement specifiers from requirements text, skipping blank lines,
+    comments, and option lines (-r/-e/--hash …), and stripping inline comments
+    and environment markers."""
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or line.startswith("-"):
+            continue
+        line = re.split(r"\s+#", line, maxsplit=1)[0].strip()   # drop an inline comment
+        line = line.split(";", 1)[0].strip()           # drop an env marker
+        if line:
+            yield line
+
+
+def exact_pin(text, project):
+    """The exactly-pinned (`==`) version of `project` in requirements `text`.
+
+    Raises ValueError if the project is absent, pinned more than once, or not
+    pinned with a plain `==` (rejects >=, <=, ~=, !=, ===, ranges, or no
+    specifier). Names are normalized (case / underscores / hyphens)."""
+    want = project.lower().replace("_", "-")
+    specs = []
+    for line in _effective_requirement_lines(text):
+        m = re.match(r"^([A-Za-z0-9][A-Za-z0-9._-]*)\s*(\[[^\]]*\])?\s*(.*)$", line)
+        if not m:
+            continue
+        if m.group(1).lower().replace("_", "-") == want:
+            specs.append(m.group(3).strip())
+    if not specs:
+        raise ValueError(f"{project} is not pinned in requirements")
+    if len(specs) > 1:
+        raise ValueError(f"{project} is pinned {len(specs)} times in requirements")
+    m = re.fullmatch(r"==\s*([A-Za-z0-9][A-Za-z0-9.\-+_]*)", specs[0])
+    if not m:
+        raise ValueError(f"{project} must be pinned with '==', got {specs[0]!r}")
+    return m.group(1)
+
+
+def test_installed_flet_equals_the_exact_requirements_pin():
+    """Read the exact `flet==<v>` pin from the real requirements.txt and demand
+    the installed Flet equal it exactly — this is the version the build packages."""
+    pin = exact_pin(_read(REQUIREMENTS), "flet")
+    assert pin == "0.86.1", f"unexpected flet pin in requirements: {pin!r}"
+    assert _md.version("flet") == pin, (
+        f"installed flet {_md.version('flet')!r} != pinned {pin!r}; the real-ctor "
+        "assertions are only valid for the packaged version"
     )
+
+
+def test_exact_pin_rejects_missing_pin():
+    with pytest.raises(ValueError):
+        exact_pin("tomlkit>=0.13\nrequests==2.32.0\n", "flet")
+
+
+def test_exact_pin_rejects_duplicate_pin():
+    with pytest.raises(ValueError):
+        exact_pin("flet==0.86.1\ntomlkit>=0.13\nflet==0.86.1\n", "flet")
+
+
+@pytest.mark.parametrize("spec", ["flet>=0.86.1", "flet~=0.86.1", "flet<=0.86.1",
+                                  "flet!=0.86.0", "flet===0.86.1", "flet>=0.86,<0.87",
+                                  "flet"])
+def test_exact_pin_rejects_non_exact_operators(spec):
+    with pytest.raises(ValueError):
+        exact_pin(spec + "\n", "flet")
+
+
+def test_exact_pin_reads_the_value_and_equality_is_strict():
+    """The parser extracts the version, and equality is strict — a different patch
+    (which a `startswith('0.86.')` check would have wrongly accepted) is not equal."""
+    pin = exact_pin("flet==0.86.1\ntomlkit>=0.13\n", "flet")
+    assert pin == "0.86.1"
+    assert "0.86.0" != pin and "0.86.2" != pin   # installed-differs-from-pinned guard
+
+
+def test_exact_pin_ignores_comments_markers_and_url_reqs():
+    """Comments, env markers, option lines and a URL requirement (the engine's
+    git pin) must not confuse the flet pin extraction."""
+    text = (
+        "# a comment\n"
+        "-r base.txt\n"
+        "flet==0.86.1  # bundled UI runtime\n"
+        "tomlkit>=0.13 ; python_version >= '3.9'\n"
+        "tiddl-elvigilante @ git+https://example/repo.git@deadbeef\n"
+    )
+    assert exact_pin(text, "flet") == "0.86.1"
 
 
 # --- 1. the real Flet Dropdown constructor rejects on_change ----------------
