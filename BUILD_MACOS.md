@@ -43,8 +43,11 @@ chmod +x release_macos.sh
 - La **primera corrida** descarga el Flutter SDK de flet (~10-20 min extra);
   las siguientes son rápidas.
 - Al final imprime la ruta del DMG en `dist-mac/`.
-- tiddl viaja **embebido dentro del `.app`** (in-process, binario único) y
-  `ffmpeg` se copia junto al ejecutable — el usuario final no instala nada más.
+- tiddl viaja **embebido dentro del `.app`** (in-process, binario único). En
+  macOS **NO** se empaqueta `ffmpeg` (paridad con Linux, desde v1.0.24): el
+  usuario final lo instala con `brew install ffmpeg` y la GUI lo resuelve en
+  runtime (rutas estándar de Homebrew). `release_macos.sh` **aborta** si detecta
+  un ejecutable `ffmpeg` dentro del `.app`.
 
 ## 3. Probar
 

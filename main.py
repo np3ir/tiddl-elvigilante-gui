@@ -17,11 +17,13 @@ import io
 import os
 import re
 import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
 
 IS_WIN = sys.platform == "win32"
+IS_MAC = sys.platform == "darwin"
 
 # --- Single-binary mode ---------------------------------------------------
 # tiddl runs IN-PROCESS (imported), not as a separate tiddl.exe subprocess.
@@ -54,6 +56,92 @@ try:
     from tiddl.core import cancel as tiddl_cancel
 except Exception:
     tiddl_cancel = None
+
+
+# --- macOS: external FFmpeg resolution -------------------------------------
+# On macOS FFmpeg is an EXTERNAL dependency (NOT bundled in the .app/DMG) — the
+# same model Linux already uses; the user installs it (e.g. `brew install
+# ffmpeg`). An app launched from Finder gets a minimal PATH that usually omits
+# Homebrew, so `shutil.which` alone is not enough. We resolve ffmpeg from a
+# deterministic candidate list, validate each (regular, executable, `-version`
+# exits 0 within a short timeout), and the caller prepends its directory to
+# PATH so the in-process engine's ffmpeg subprocess finds it. This is invoked
+# ONLY on macOS — Windows (bundled ffmpeg.exe next to the exe) and Linux
+# (system ffmpeg on the normal PATH) are unchanged.
+FFMPEG_VERSION_TIMEOUT = 5.0
+
+
+def _ffmpeg_version_ok(path: str, timeout: float = FFMPEG_VERSION_TIMEOUT) -> bool:
+    """True iff `<path> -version` exits 0 within `timeout` seconds. Any failure
+    (non-zero exit, timeout, missing/again-not-runnable) is a plain False."""
+    try:
+        r = subprocess.run(
+            [path, "-version"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=timeout,
+        )
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def macos_ffmpeg_candidates(env=None) -> list:
+    """Ordered, deterministic ffmpeg candidate paths on macOS:
+      1. explicit override via the TIDDL_FFMPEG env var,
+      2. PATH (`shutil.which`),
+      3. /opt/homebrew/bin/ffmpeg  (Homebrew on Apple Silicon),
+      4. /usr/local/bin/ffmpeg     (Homebrew on Intel).
+    Duplicates are removed preserving first-seen order."""
+    env = os.environ if env is None else env
+    raw = []
+    override = (env.get("TIDDL_FFMPEG") or "").strip()
+    if override:
+        raw.append(override)
+    which = shutil.which("ffmpeg", path=env.get("PATH"))
+    if which:
+        raw.append(which)
+    raw.append("/opt/homebrew/bin/ffmpeg")
+    raw.append("/usr/local/bin/ffmpeg")
+    seen, uniq = set(), []
+    for c in raw:
+        try:
+            key = os.path.abspath(c)
+        except Exception:
+            key = c
+        if key not in seen:
+            seen.add(key)
+            uniq.append(c)
+    return uniq
+
+
+def valid_ffmpeg(path: str, version_check=None):
+    """Canonical absolute path if `path` is a regular, executable file whose
+    `ffmpeg -version` succeeds; otherwise None. Directories, broken links and
+    non-executables are rejected. `version_check` is injectable for tests."""
+    if not path:
+        return None
+    check = version_check or _ffmpeg_version_ok
+    try:
+        p = os.path.abspath(path)
+        if not os.path.isfile(p) or not os.access(p, os.X_OK):
+            return None
+        if not check(p):
+            return None
+        return os.path.realpath(p)
+    except Exception:
+        return None
+
+
+def resolve_ffmpeg(env=None, validate=None):
+    """First valid ffmpeg among the ordered macOS candidates, or None if none
+    resolve. `validate` (path -> canonical|None) is injectable for tests."""
+    validate = validate or valid_ffmpeg
+    for c in macos_ffmpeg_candidates(env):
+        found = validate(c)
+        if found:
+            return found
+    return None
 
 
 def _tiddl_commit() -> str:
@@ -485,6 +573,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "done_n": "Done - {n} download(s)",
         "errors_n": "Finished with errors (exit {c}) - {n} download(s)",
         "error": "Error: {e}",
+        "ffmpeg_missing": "FFmpeg was not found. Install it with `brew install ffmpeg`, restart the application, and try again.",
     },
     "es": {
         "tab_download": "Descargar",
@@ -743,6 +832,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "done_n": "Listo - {n} descarga(s)",
         "errors_n": "Terminó con errores (exit {c}) - {n} descarga(s)",
         "error": "Error: {e}",
+        "ffmpeg_missing": "No se encontró FFmpeg. Instálalo con `brew install ffmpeg`, reinicia la aplicación y vuelve a intentarlo.",
     },
 }
 
@@ -3396,10 +3486,38 @@ class TiddlGui:
         code = run_tiddl(cmd, on_line)
         return code, total
 
+    def _ensure_ffmpeg_on_macos(self) -> bool:
+        """Resolve the external ffmpeg on macOS and prepend its directory to the
+        process PATH so the in-process engine's ffmpeg subprocess finds it (a
+        Finder launch gets a minimal PATH). On failure, surface the bilingual,
+        actionable message, keep the GUI alive, and return False so the caller
+        aborts BEFORE starting a partial download."""
+        ff = resolve_ffmpeg()
+        if not ff:
+            self.set_running(False)
+            self.set_status(self.t("ffmpeg_missing"), error=True)
+            self.log(self.t("ffmpeg_missing"))
+            self.flush_log()
+            return False
+        try:
+            d = os.path.dirname(ff)
+            parts = os.environ.get("PATH", "").split(os.pathsep)
+            if d and d not in parts:
+                os.environ["PATH"] = d + os.pathsep + os.environ.get("PATH", "")
+        except Exception:
+            pass
+        return True
+
     def worker(self, cmds: list[list[str]]):
         self.cancelled = False
         if tiddl_cancel is not None:
             tiddl_cancel.clear()
+        # macOS: FFmpeg is EXTERNAL (not bundled). Resolve it and put its dir on
+        # PATH so the in-process engine finds it; if it is missing, show the
+        # bilingual message and do NOT start — a partial download would break
+        # later on remux / faststart. Windows and Linux are unaffected.
+        if IS_MAC and not self._ensure_ffmpeg_on_macos():
+            return
         grand_total = 0
         worst_code = 0
         try:

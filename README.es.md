@@ -68,12 +68,13 @@ fiable. Desactivadas por defecto; se guardan con tus ajustes.
 ## Instalar (macOS)
 
 1. Descarga `tiddl-ElVigilante-x.x.x-macos.dmg` desde [Releases](../../releases) (Apple Silicon), ábrelo y arrastra la app a Aplicaciones
-2. La app no está firmada, así que macOS la pone en cuarentena. Si ves **"tiddl-gui is damaged and can't be opened"**, es esa marca de cuarentena — quítasela una vez desde la Terminal:
+2. Instala ffmpeg — macOS **no** lo incluye (mismo modelo que Linux): `brew install ffmpeg`. Al abrir la app desde Finder, encuentra el ffmpeg de Homebrew automáticamente (`/opt/homebrew/bin` en Apple Silicon, `/usr/local/bin` en Intel). Si falta ffmpeg, la app te avisa y sigue abierta — instálalo, reinicia y vuelve a intentarlo.
+3. La app no está firmada, así que macOS la pone en cuarentena. Si ves **"tiddl-gui is damaged and can't be opened"**, es esa marca de cuarentena — quítasela una vez desde la Terminal:
    ```bash
    chmod -R u+w "/Applications/tiddl-gui.app"
    xattr -cr "/Applications/tiddl-gui.app"
    ```
-3. Ahora abre la app → inicia sesión en TIDAL → configura tus carpetas → descarga
+4. Ahora abre la app → inicia sesión en TIDAL → configura tus carpetas → descarga
 
 Para compilar el DMG tú mismo, mira [BUILD_MACOS.md](BUILD_MACOS.md).
 

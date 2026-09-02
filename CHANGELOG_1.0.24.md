@@ -48,6 +48,25 @@
   to **`strict`** requires a **fresh status check** before any mutating action
   becomes available.
 
+### macOS: FFmpeg is now an external dependency
+
+- **macOS no longer bundles FFmpeg** inside the `.app`/DMG — it is an external
+  dependency, the same model Linux already uses. Install it with
+  `brew install ffmpeg`.
+- **Why.** The previous approach copied Homebrew's `ffmpeg`, which links against
+  `/opt/homebrew/…` dylibs and is arm64-only — it would not run on a clean Mac.
+  That first v1.0.24 DMG was **rejected and never published**.
+- **Finder-safe resolution.** The GUI resolves an external ffmpeg from a
+  deterministic list — an explicit `TIDDL_FFMPEG` override, then `PATH`, then
+  `/opt/homebrew/bin/ffmpeg` (Apple Silicon) and `/usr/local/bin/ffmpeg` (Intel) —
+  validates it (`ffmpeg -version`), and prepends its directory to `PATH` so the
+  engine finds it even when the app is launched from Finder with a minimal `PATH`.
+- **Clear message when missing.** If ffmpeg is not found, the app shows a
+  bilingual, actionable message and stays open (no crash) instead of starting a
+  download that would break on remux.
+- **Per platform:** Windows bundles `ffmpeg.exe`; Linux and macOS use an external
+  ffmpeg from the system/package manager.
+
 ### Public vs. prepared source
 
 - **Public GUI 1.0.23** — immutable artifact, engine **v1.5.4**, does **not**
@@ -98,6 +117,24 @@
 - Cambiar el modo **no crea, adopta ni elimina** ninguna identidad; pasar a
   **`strict`** exige una **nueva comprobación** antes de habilitar cualquier acción
   mutadora.
+
+### macOS: FFmpeg ahora es dependencia externa
+
+- **macOS ya no incluye FFmpeg** dentro del `.app`/DMG — es dependencia externa,
+  el mismo modelo que ya usa Linux. Instálalo con `brew install ffmpeg`.
+- **Por qué.** El enfoque anterior copiaba el `ffmpeg` de Homebrew, que enlaza
+  contra dylibs de `/opt/homebrew/…` y es solo arm64 — no corría en un Mac limpio.
+  Ese primer DMG v1.0.24 fue **rechazado y nunca publicado**.
+- **Resolución compatible con Finder.** La GUI resuelve un ffmpeg externo de una
+  lista determinista — override explícito `TIDDL_FFMPEG`, luego `PATH`, luego
+  `/opt/homebrew/bin/ffmpeg` (Apple Silicon) y `/usr/local/bin/ffmpeg` (Intel) —,
+  lo valida (`ffmpeg -version`) y antepone su directorio al `PATH` para que el
+  motor lo encuentre incluso al abrir desde Finder con un `PATH` mínimo.
+- **Mensaje claro si falta.** Si no se encuentra ffmpeg, la app muestra un mensaje
+  bilingüe y accionable y sigue abierta (sin crash), en vez de empezar una descarga
+  que fallaría en el remux.
+- **Por plataforma:** Windows incluye `ffmpeg.exe`; Linux y macOS usan un ffmpeg
+  externo del sistema/gestor de paquetes.
 
 ### Pública vs. fuente preparada
 
