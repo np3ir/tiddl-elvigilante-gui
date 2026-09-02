@@ -94,10 +94,11 @@ echo "[2/3] macOS: FFmpeg es dependencia EXTERNA — NO se empaqueta en el .app.
 # ffmpeg) y la GUI lo resuelve en runtime (main.py: resolve_ffmpeg / _ensure_ffmpeg_on_macos,
 # que antepone su directorio al PATH). Empaquetar el ffmpeg de Homebrew arrastraba
 # dylibs de /opt/homebrew no portables y era arm64-only -> DMG no distribuible.
-# Guarda dura: el .app NO debe contener un ejecutable 'ffmpeg'. Aborta si aparece.
-if find "$APP" -type f -name 'ffmpeg' | grep -q .; then
-  echo "ERROR: hay un ejecutable 'ffmpeg' dentro del .app; en macOS FFmpeg es externo y NO debe empaquetarse." >&2
-  find "$APP" -type f -name 'ffmpeg' >&2
+# Guarda dura: el .app NO debe contener un 'ffmpeg' embebido en NINGUNA forma
+# (archivo regular O symlink) — un symlink ejecutable tambien violaria el invariante.
+if find "$APP" \( -type f -o -type l \) -name 'ffmpeg' | grep -q .; then
+  echo "ERROR: hay un 'ffmpeg' (archivo o symlink) dentro del .app; en macOS FFmpeg es externo y NO debe empaquetarse." >&2
+  find "$APP" \( -type f -o -type l \) -name 'ffmpeg' >&2
   exit 1
 fi
 echo "      OK: sin ffmpeg embebido en el .app (dependencia externa)."

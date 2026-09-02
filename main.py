@@ -75,11 +75,16 @@ def _ffmpeg_version_ok(path: str, timeout: float = FFMPEG_VERSION_TIMEOUT) -> bo
     """True iff `<path> -version` exits 0 within `timeout` seconds. Any failure
     (non-zero exit, timeout, missing/again-not-runnable) is a plain False."""
     try:
+        # Fixed-argv, shell-less run of a path we resolved AND validated ourselves
+        # (TIDDL_FFMPEG override / PATH / the two Homebrew prefixes). shell=False
+        # means there is no shell to inject into — `path` is the executable to
+        # exec, never interpreted as a shell string.
         r = subprocess.run(
             [path, "-version"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             timeout=timeout,
+            shell=False,
         )
         return r.returncode == 0
     except Exception:
