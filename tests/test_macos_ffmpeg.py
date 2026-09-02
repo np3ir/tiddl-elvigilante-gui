@@ -54,7 +54,7 @@ def test_02_finds_via_path(monkeypatch, tmp_path):
     monkeypatch.setattr(main.shutil, "which", lambda name, path=None: ff if name == "ffmpeg" else None)
     got = main.resolve_ffmpeg(env={"PATH": str(tmp_path), "TIDDL_FFMPEG": ""},
                               validate=lambda p: main.valid_ffmpeg(p, version_check=lambda _p: True))
-    assert got == os.path.realpath(ff)
+    assert got == os.path.abspath(ff)
 
 
 def test_03_finds_homebrew_apple_silicon_with_minimal_path(monkeypatch):
@@ -132,7 +132,7 @@ def test_09_rejects_when_version_fails(tmp_path):
 
 def test_09b_accepts_regular_executable_with_version_ok(tmp_path):
     ff = _make_exec(tmp_path)
-    assert main.valid_ffmpeg(ff, version_check=lambda _p: True) == os.path.realpath(ff)
+    assert main.valid_ffmpeg(ff, version_check=lambda _p: True) == os.path.abspath(ff)
 
 
 def test_10_version_check_handles_timeout(monkeypatch):
@@ -201,6 +201,10 @@ class _Probe:
     def t(self, key, **kw):
         return main.STRINGS.get(self.lang, {}).get(key) or main.STRINGS["en"].get(key, key)
 
+    def _ffmpeg_preflight_fail(self):
+        # exercise the REAL failure path against this probe's UI methods
+        return main.TiddlGui._ffmpeg_preflight_fail(self)
+
 
 def test_14_missing_ffmpeg_does_not_kill_host(monkeypatch):
     monkeypatch.setattr(main, "resolve_ffmpeg", lambda *a, **k: None)
@@ -215,11 +219,70 @@ def test_14_missing_ffmpeg_does_not_kill_host(monkeypatch):
 
 def test_14b_found_ffmpeg_prepends_its_dir_to_path(monkeypatch):
     monkeypatch.setattr(main, "resolve_ffmpeg", lambda *a, **k: "/opt/homebrew/bin/ffmpeg")
+    # after prepending, `which ffmpeg` resolves to our validated candidate
+    monkeypatch.setattr(main.shutil, "which", lambda name, path=None: "/opt/homebrew/bin/ffmpeg")
     monkeypatch.setenv("PATH", "/usr/bin")
     p = _Probe()
     ok = main.TiddlGui._ensure_ffmpeg_on_macos(p)
     assert ok is True
     assert os.environ["PATH"].split(os.pathsep)[0] == os.path.dirname("/opt/homebrew/bin/ffmpeg")
+
+
+# --- TIDDL_FFMPEG basename contract: engine runs the literal `ffmpeg` --------
+def test_21_override_with_ffmpeg_basename_is_accepted(tmp_path):
+    ff = _make_exec(tmp_path, name="ffmpeg")
+    assert main.valid_ffmpeg(ff, version_check=lambda _p: True) == os.path.abspath(ff)
+
+
+def test_22_override_with_non_ffmpeg_basename_is_rejected(tmp_path):
+    other = _make_exec(tmp_path, name="my-ffmpeg-build")  # valid exec, WRONG name
+    assert main.valid_ffmpeg(other, version_check=lambda _p: True) is None
+
+
+def test_22b_resolve_rejects_override_whose_basename_isnt_ffmpeg(monkeypatch, tmp_path):
+    other = _make_exec(tmp_path, name="my-ffmpeg")
+    monkeypatch.setattr(main.shutil, "which", lambda *a, **k: None)
+    # real valid_ffmpeg (no injected validate) → the wrong-basename override is
+    # NOT a false success; nothing else resolves either
+    assert main.resolve_ffmpeg(env={"TIDDL_FFMPEG": other, "PATH": ""}) is None
+
+
+# --- fail-closed PATH / `which` verification --------------------------------
+def test_23_fails_closed_when_which_resolves_nothing(monkeypatch):
+    monkeypatch.setattr(main, "resolve_ffmpeg", lambda *a, **k: "/opt/homebrew/bin/ffmpeg")
+    monkeypatch.setattr(main.shutil, "which", lambda *a, **k: None)  # PATH can't resolve ffmpeg
+    p = _Probe()
+    assert main.TiddlGui._ensure_ffmpeg_on_macos(p) is False
+    assert p.running is False
+    assert any(c[0] == "status" and c[2] for c in p.calls)
+
+
+def test_24_fails_closed_when_which_resolves_a_different_exe(monkeypatch):
+    monkeypatch.setattr(main, "resolve_ffmpeg", lambda *a, **k: "/opt/homebrew/bin/ffmpeg")
+    monkeypatch.setattr(main.shutil, "which", lambda *a, **k: "/usr/bin/ffmpeg")  # a DIFFERENT ffmpeg
+    p = _Probe()
+    assert main.TiddlGui._ensure_ffmpeg_on_macos(p) is False
+
+
+def test_25_fails_closed_when_path_step_raises(monkeypatch):
+    monkeypatch.setattr(main, "resolve_ffmpeg", lambda *a, **k: "/opt/homebrew/bin/ffmpeg")
+
+    def boom(*a, **k):
+        raise RuntimeError("env/which blocked")
+
+    monkeypatch.setattr(main.shutil, "which", boom)  # exception inside the try-block
+    p = _Probe()
+    assert main.TiddlGui._ensure_ffmpeg_on_macos(p) is False  # host survives, fails closed
+    assert p.running is False
+
+
+def test_26_no_path_duplication_when_dir_already_first(monkeypatch):
+    monkeypatch.setattr(main, "resolve_ffmpeg", lambda *a, **k: "/opt/homebrew/bin/ffmpeg")
+    monkeypatch.setattr(main.shutil, "which", lambda name, path=None: "/opt/homebrew/bin/ffmpeg")
+    monkeypatch.setenv("PATH", "/opt/homebrew/bin" + os.pathsep + "/usr/bin")
+    p = _Probe()
+    assert main.TiddlGui._ensure_ffmpeg_on_macos(p) is True
+    assert os.environ["PATH"].split(os.pathsep).count("/opt/homebrew/bin") == 1
 
 
 # --- Windows/Linux unchanged (#15, #16) ------------------------------------
@@ -277,16 +340,23 @@ def test_17_release_macos_no_longer_copies_system_ffmpeg():
     assert 'cp "$(command -v ffmpeg)"' not in src
 
 
-def test_18_release_macos_guards_against_embedded_ffmpeg_and_hard_signs():
+def test_18_release_macos_calls_the_guard_and_hard_signs():
     src = _read(RELEASE_MACOS)
-    # a hard guard that finds & rejects an ffmpeg executable in the .app
-    assert "-name 'ffmpeg'" in src and "exit 1" in src
+    # the embedded-ffmpeg guard is INVOKED (extracted to a tested shell function)
+    assert "assert_no_bundled_ffmpeg" in src
     # no silent codesign tolerance (the pre-existing `|| true` on the APP_VERSION
     # grep is a legitimate different use — only codesign must not swallow failures)
     for line in src.splitlines():
         if "codesign" in line:
             assert "|| true" not in line, f"codesign must abort on failure, not swallow it: {line!r}"
     assert "codesign --verify --deep --strict" in src
+
+
+def test_18b_release_lib_has_a_tested_ffmpeg_guard_function():
+    lib = _read(os.path.join(ROOT, "release_lib.sh"))
+    assert "assert_no_bundled_ffmpeg()" in lib
+    # matches a regular file OR a symlink named ffmpeg (a broken symlink included)
+    assert "-type f -o -type l" in lib and "-name 'ffmpeg'" in lib
 
 
 # --- invariants (#19, #20) -------------------------------------------------

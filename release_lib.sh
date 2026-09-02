@@ -64,3 +64,19 @@ remove_dir_strict() {
 
 # Valida X.Y.Z.
 valid_semver() { [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; }
+
+# macOS: el .app NO debe empaquetar FFmpeg (dependencia externa, paridad con
+# Linux). Rechaza (return 1) si encuentra un 'ffmpeg' que sea archivo regular
+# O symlink (incluido un symlink ROTO) — pero NO el paquete Python 'ffmpeg/'
+# (un directorio) ni archivos como 'ffmpeg.pyc' (basename distinto de 'ffmpeg').
+# Uso:  assert_no_bundled_ffmpeg "<ruta .app>"  || exit 1
+assert_no_bundled_ffmpeg() {
+  local app="$1" hits
+  hits="$(find "$app" \( -type f -o -type l \) -name 'ffmpeg' 2>/dev/null)"
+  if [[ -n "$hits" ]]; then
+    echo "ERROR: 'ffmpeg' (archivo o symlink) dentro del .app; en macOS FFmpeg es externo y NO debe empaquetarse:" >&2
+    echo "$hits" >&2
+    return 1
+  fi
+  return 0
+}

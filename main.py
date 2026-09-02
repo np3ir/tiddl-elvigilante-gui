@@ -75,10 +75,14 @@ def _ffmpeg_version_ok(path: str, timeout: float = FFMPEG_VERSION_TIMEOUT) -> bo
     """True iff `<path> -version` exits 0 within `timeout` seconds. Any failure
     (non-zero exit, timeout, missing/again-not-runnable) is a plain False."""
     try:
-        # Fixed-argv, shell-less run of a path we resolved AND validated ourselves
-        # (TIDDL_FFMPEG override / PATH / the two Homebrew prefixes). shell=False
-        # means there is no shell to inject into — `path` is the executable to
-        # exec, never interpreted as a shell string.
+        # Fixed-argv, shell-less run: `shell=False` + a list argv means there is
+        # no shell to inject into — `path` is the executable to exec, never a
+        # shell string, so shlex escaping does not apply. `path` comes from
+        # deliberately CONFIGURABLE sources (the TIDDL_FFMPEG override and PATH,
+        # plus the known Homebrew fallbacks): running the chosen ffmpeg is the
+        # whole purpose of the resolver — a trust boundary owned by whoever
+        # controls the user's environment, not an untrusted external input.
+        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit
         r = subprocess.run(
             [path, "-version"],
             stdout=subprocess.DEVNULL,
@@ -121,19 +125,30 @@ def macos_ffmpeg_candidates(env=None) -> list:
 
 
 def valid_ffmpeg(path: str, version_check=None):
-    """Canonical absolute path if `path` is a regular, executable file whose
-    `ffmpeg -version` succeeds; otherwise None. Directories, broken links and
-    non-executables are rejected. `version_check` is injectable for tests."""
+    """Absolute path if `path` is a regular, executable file NAMED exactly
+    `ffmpeg` whose `ffmpeg -version` succeeds; otherwise None. Directories,
+    broken links and non-executables are rejected.
+
+    The basename MUST be `ffmpeg`: the engine runs the literal command `ffmpeg`
+    via PATH, so once we prepend the file's directory `ffmpeg` has to resolve to
+    it — an executable under any other name (e.g. a `TIDDL_FFMPEG` pointing at
+    `my-ffmpeg-build`) would validate but the engine could never find it. We
+    return the **abspath** (NOT realpath) on purpose: a symlink named `ffmpeg`
+    is valid because that is the name PATH resolves in the prepended directory,
+    and realpath would rewrite it to the target's (different) name.
+    `version_check` is injectable for tests."""
     if not path:
         return None
     check = version_check or _ffmpeg_version_ok
     try:
         p = os.path.abspath(path)
+        if os.path.basename(p) != "ffmpeg":
+            return None
         if not os.path.isfile(p) or not os.access(p, os.X_OK):
             return None
         if not check(p):
             return None
-        return os.path.realpath(p)
+        return p
     except Exception:
         return None
 
@@ -3491,26 +3506,37 @@ class TiddlGui:
         code = run_tiddl(cmd, on_line)
         return code, total
 
+    def _ffmpeg_preflight_fail(self) -> bool:
+        """Surface the bilingual missing-ffmpeg message, keep the GUI alive, and
+        return False so the caller aborts before starting a partial download."""
+        self.set_running(False)
+        self.set_status(self.t("ffmpeg_missing"), error=True)
+        self.log(self.t("ffmpeg_missing"))
+        self.flush_log()
+        return False
+
     def _ensure_ffmpeg_on_macos(self) -> bool:
-        """Resolve the external ffmpeg on macOS and prepend its directory to the
-        process PATH so the in-process engine's ffmpeg subprocess finds it (a
-        Finder launch gets a minimal PATH). On failure, surface the bilingual,
-        actionable message, keep the GUI alive, and return False so the caller
-        aborts BEFORE starting a partial download."""
+        """Resolve the external ffmpeg on macOS and put its directory on PATH so
+        the in-process engine (which runs the literal `ffmpeg` command) finds it,
+        even from a Finder launch with a minimal PATH. FAILS CLOSED: if ffmpeg
+        cannot be resolved, the PATH update raises, or `ffmpeg` still does not
+        resolve to the validated executable, it shows the bilingual message,
+        keeps the GUI alive, and returns False — never starting a download that
+        would break later on remux."""
         ff = resolve_ffmpeg()
         if not ff:
-            self.set_running(False)
-            self.set_status(self.t("ffmpeg_missing"), error=True)
-            self.log(self.t("ffmpeg_missing"))
-            self.flush_log()
-            return False
+            return self._ffmpeg_preflight_fail()
         try:
             d = os.path.dirname(ff)
-            parts = os.environ.get("PATH", "").split(os.pathsep)
-            if d and d not in parts:
+            if d and d not in os.environ.get("PATH", "").split(os.pathsep):
                 os.environ["PATH"] = d + os.pathsep + os.environ.get("PATH", "")
+            # Fail closed: the engine runs the literal `ffmpeg` via PATH, so the
+            # updated PATH MUST resolve `ffmpeg` to exactly the file we validated.
+            found = shutil.which("ffmpeg", path=os.environ.get("PATH"))
+            if not found or os.path.abspath(found) != os.path.abspath(ff):
+                return self._ffmpeg_preflight_fail()
         except Exception:
-            pass
+            return self._ffmpeg_preflight_fail()
         return True
 
     def worker(self, cmds: list[list[str]]):
