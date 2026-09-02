@@ -37,6 +37,14 @@
   identity; switching to `strict` requires a fresh status check before mutating
   actions become available.
 
+**macOS: FFmpeg is now external.** macOS no longer bundles FFmpeg in the `.app`/DMG
+— install it with `brew install ffmpeg` (same model as Linux). The app finds
+Homebrew's ffmpeg automatically even when launched from Finder (`/opt/homebrew/bin`
+on Apple Silicon, `/usr/local/bin` on Intel); if it is missing, a bilingual message
+tells you and the app stays open. Windows still bundles `ffmpeg.exe`. The first
+v1.0.24 macOS DMG (which bundled a non-portable Homebrew ffmpeg) was rejected and
+never published.
+
 **Public 1.0.23 vs. prepared 1.0.24 source.**
 
 - **Public GUI 1.0.23** is an immutable artifact bundling engine **v1.5.4**; it does
@@ -77,6 +85,14 @@
   identidad confiable antes de escribir. Cambiar el modo no crea, adopta ni elimina
   ninguna identidad; pasar a `strict` exige una nueva comprobación antes de que las
   acciones mutadoras estén disponibles.
+
+**macOS: FFmpeg ahora es externo.** macOS ya no incluye FFmpeg en el `.app`/DMG —
+instálalo con `brew install ffmpeg` (mismo modelo que Linux). La app encuentra el
+ffmpeg de Homebrew automáticamente incluso al abrir desde Finder (`/opt/homebrew/bin`
+en Apple Silicon, `/usr/local/bin` en Intel); si falta, un mensaje bilingüe te avisa y
+la app sigue abierta. Windows sigue incluyendo `ffmpeg.exe`. El primer DMG v1.0.24 de
+macOS (que empaquetaba un ffmpeg de Homebrew no portable) fue rechazado y nunca
+publicado.
 
 **Pública 1.0.23 vs. fuente preparada 1.0.24.**
 

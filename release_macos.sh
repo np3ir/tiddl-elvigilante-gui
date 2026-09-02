@@ -89,17 +89,21 @@ if [[ -z "$APP" || ! -d "$APP" ]]; then
   exit 1
 fi
 
-echo "[2/3] Empacando ffmpeg dentro del .app + re-firma..."
-BINDIR="$APP/Contents/MacOS"
-# ffmpeg del sistema (brew) junto al ejecutable; main.py antepone {app} al PATH.
-cp "$(command -v ffmpeg)" "$BINDIR/ffmpeg"
-# u+w too: Homebrew's ffmpeg is read-only, which later blocks `xattr -cr`
-# (removing the download quarantine) on the user's machine.
-chmod u+rwx "$BINDIR/ffmpeg"
-# Ad-hoc re-sign: bundling ffmpeg invalidates flet's signature, and an
-# unsigned app fails to launch on Apple Silicon. (Does not remove the
-# download-quarantine step; only notarization would.)
-codesign --force --deep --sign - "$APP" 2>/dev/null || true
+echo "[2/3] macOS: FFmpeg es dependencia EXTERNA — NO se empaqueta en el .app..."
+# FFmpeg NO se embebe (paridad con Linux): el usuario lo instala (brew install
+# ffmpeg) y la GUI lo resuelve en runtime (main.py: resolve_ffmpeg / _ensure_ffmpeg_on_macos,
+# que antepone su directorio al PATH). Empaquetar el ffmpeg de Homebrew arrastraba
+# dylibs de /opt/homebrew no portables y era arm64-only -> DMG no distribuible.
+# Guarda dura (funcion testeable en release_lib.sh, cubierta por
+# tests/release_lib.test.sh): el .app NO debe contener un 'ffmpeg' embebido en
+# NINGUNA forma — archivo regular O symlink (incluso roto).
+assert_no_bundled_ffmpeg "$APP" || exit 1
+echo "      OK: sin ffmpeg embebido en el .app (dependencia externa)."
+# Firma ad-hoc del bundle (sin ffmpeg embebido). Un fallo de firma o verificacion
+# DEBE abortar el build: sin tolerancias silenciosas (nada de '2>/dev/null || true').
+codesign --force --deep --sign - "$APP"
+codesign --verify --deep --strict "$APP"
+echo "      codesign firmado y verificado (ad-hoc)."
 
 echo "[3/3] Creando DMG..."
 mkdir -p dist-mac

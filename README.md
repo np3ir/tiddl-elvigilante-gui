@@ -68,12 +68,13 @@ reliable. Off by default; saved with your defaults.
 ## Install (macOS)
 
 1. Download `tiddl-ElVigilante-x.x.x-macos.dmg` from [Releases](../../releases) (Apple Silicon), open it and drag the app to Applications
-2. The app is unsigned, so macOS quarantines it. If you see **"tiddl-gui is damaged and can't be opened"**, that's the quarantine flag — remove it once from Terminal:
+2. Install ffmpeg — macOS does **not** bundle it (same model as Linux): `brew install ffmpeg`. Launched from Finder the app finds Homebrew's ffmpeg automatically. The published DMG is **Apple Silicon** and finds ffmpeg under `/opt/homebrew/bin`; the app also checks `/usr/local/bin` as a fallback for running/building the GUI on Intel (the Apple Silicon DMG itself is **not** Intel-compatible). If ffmpeg is missing the app tells you and stays open — install it, restart, and try again.
+3. The app is unsigned, so macOS quarantines it. If you see **"tiddl-gui is damaged and can't be opened"**, that's the quarantine flag — remove it once from Terminal:
    ```bash
    chmod -R u+w "/Applications/tiddl-gui.app"
    xattr -cr "/Applications/tiddl-gui.app"
    ```
-3. Now open the app → log in to TIDAL → set your folders → download
+4. Now open the app → log in to TIDAL → set your folders → download
 
 To build the DMG yourself, see [BUILD_MACOS.md](BUILD_MACOS.md).
 
