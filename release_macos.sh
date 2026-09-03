@@ -99,11 +99,18 @@ echo "[2/3] macOS: FFmpeg es dependencia EXTERNA — NO se empaqueta en el .app.
 # NINGUNA forma — archivo regular O symlink (incluso roto).
 assert_no_bundled_ffmpeg "$APP" || exit 1
 echo "      OK: sin ffmpeg embebido en el .app (dependencia externa)."
-# Firma ad-hoc del bundle (sin ffmpeg embebido). Un fallo de firma o verificacion
-# DEBE abortar el build: sin tolerancias silenciosas (nada de '2>/dev/null || true').
-codesign --force --deep --sign - "$APP"
+# NO re-firmar el bundle. 'flet build macos' ya lo firma ad-hoc CON los entitlements
+# que necesita el file-picker (com.apple.security.files.user-selected.read-write).
+# La re-firma previa 'codesign --force --deep --sign -' (sin --entitlements ni
+# --preserve-metadata) BORRABA ese entitlement -> el boton "Browse"
+# (get_directory_path, main.py) fallaba con PlatformException(ENTITLEMENT_NOT_FOUND).
+# Confirmado por el diagnostico A/B/C: presente tras 'flet build', ausente tras la
+# re-firma. Como el .app ya NO se modifica tras 'flet build' (PR #24 dejo de copiar
+# ffmpeg), la re-firma era redundante ademas de danina; se elimina. Un fallo de
+# verificacion o de la guarda DEBE abortar: sin tolerancias silenciosas.
 codesign --verify --deep --strict "$APP"
-echo "      codesign firmado y verificado (ad-hoc)."
+assert_required_entitlement "$APP" || exit 1
+echo "      codesign verificado (firma ad-hoc de flet) + entitlement de file-picker presente."
 
 echo "[3/3] Creando DMG..."
 mkdir -p dist-mac
