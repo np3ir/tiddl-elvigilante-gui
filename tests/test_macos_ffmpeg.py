@@ -391,7 +391,7 @@ def test_29_release_lib_has_a_tested_entitlement_guard():
     assert "entitlement_file_access_granted()" in lib
     assert "assert_required_entitlement()" in lib
     # reads the REAL signed entitlements from the bundle (not a source-tree grep)
-    assert "codesign -d --entitlements" in lib
+    assert 'codesign -d --entitlements :- "$app"' in lib
     # the exact key the Flet file-picker (get_directory_path) requires
     assert "com.apple.security.files.user-selected.read-write" in lib
 

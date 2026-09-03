@@ -117,7 +117,9 @@ entitlement_file_access_granted() {
 # Uso:  assert_required_entitlement "<ruta .app>"  || exit 1
 assert_required_entitlement() {
   local app="$1" ent
-  ent="$(codesign -d --entitlements - "$app" 2>/dev/null)" || ent=""
+  # `:-` requests the XML plist form consumed by the structural parser above.
+  # Plain `-` emits Apple's human-readable [Dict]/[Key] format on current macOS.
+  ent="$(codesign -d --entitlements :- "$app" 2>/dev/null)" || ent=""
   if printf '%s' "$ent" | entitlement_file_access_granted; then
     return 0
   fi
