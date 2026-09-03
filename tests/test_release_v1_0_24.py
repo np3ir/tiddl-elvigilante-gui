@@ -110,11 +110,27 @@ def test_adopt_revalidation_timing_is_precise_in_both_docs():
 # v1.0.24.
 # ---------------------------------------------------------------------------
 def _describes_release_lineage(text):
-    low = text.lower()
-    has_both_versions = "1.0.23" in text and "1.0.24" in text
-    has_platforms = all(p in low for p in ("windows", "linux", "macos"))
-    stale = any(p in low for p in ("source-prepared", "not yet built", "todavía sin construir"))
-    return has_both_versions and has_platforms and not stale
+    low = _norm_ws(text).lower()
+    has_both_versions = "1.0.23" in low and "1.0.24" in low
+    finalized = "windows, linux and macos artifacts were built and validated" in low
+    stale_phrases = (
+        "source-prepared",
+        "source prepared",
+        "prepared source",
+        "not yet released",
+        "not yet built",
+        "not been built",
+        "not published",
+        "not yet published",
+        "public release remains 1.0.23",
+        "current public release is 1.0.23",
+        "fuente preparada",
+        "todavía sin construir",
+        "aún sin construir",
+        "no publicada",
+        "no publicado",
+    )
+    return has_both_versions and finalized and not any(p in low for p in stale_phrases)
 
 
 def test_changelog_describes_release_lineage():
