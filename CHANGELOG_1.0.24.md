@@ -1,9 +1,8 @@
 # tiddl by ElVigilante — 1.0.24
 
-> This is a **source-prepared** release. It bundles engine **v1.5.5** and adds the
-> destination-identity features B1 and B2. It has **not** been built, installed, or
-> published yet — the public release remains **1.0.23** (engine **v1.5.4**, without
-> B1/B2). See "Public vs. prepared source" below.
+> Release v1.0.24 bundles engine **v1.5.5** and adds the destination-identity
+> features B1 and B2. Windows, Linux and macOS artifacts were built and validated
+> from the audited source. macOS is ad-hoc signed (not notarized).
 
 ## What's new
 
@@ -67,12 +66,12 @@
 - **Per platform:** Windows bundles `ffmpeg.exe`; Linux and macOS use an external
   ffmpeg from the system/package manager.
 
-### Public vs. prepared source
+### Release lineage
 
 - **Public GUI 1.0.23** — immutable artifact, engine **v1.5.4**, does **not**
   contain B1/B2.
-- **Prepared source GUI 1.0.24** — engine **v1.5.5**, B1 + B2; **not yet built,
-  installed, or published**.
+- **GUI 1.0.24** — engine **v1.5.5**, B1 + B2; Windows, Linux and macOS artifacts
+  passed their platform-specific build and smoke gates.
 
 ## Novedades
 
@@ -136,9 +135,9 @@
 - **Por plataforma:** Windows incluye `ffmpeg.exe`; Linux y macOS usan un ffmpeg
   externo del sistema/gestor de paquetes.
 
-### Pública vs. fuente preparada
+### Historial de la release
 
 - **GUI 1.0.23 pública** — artefacto inmutable, motor **v1.5.4**, **no** contiene
   B1/B2.
-- **Fuente preparada GUI 1.0.24** — motor **v1.5.5**, B1 + B2; **todavía sin
-  construir, instalar ni publicar**.
+- **GUI 1.0.24** — motor **v1.5.5**, B1 + B2; los artefactos de Windows, Linux y
+  macOS superaron sus gates de build y smoke específicos de plataforma.
