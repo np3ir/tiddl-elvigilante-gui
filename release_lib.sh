@@ -90,10 +90,16 @@ assert_no_bundled_ffmpeg() {
 # mencion del identificador dentro de un comentario o de un valor de texto NO
 # cuenta, y read-write=<false/> tampoco concede. Solo builtins + tr/sed.
 entitlement_file_access_granted() {
-  local s
+  local s pre post
   s="$(cat)"
   s="$(printf '%s' "$s" | tr -d '\n\r\t')"
-  s="$(printf '%s' "$s" | sed 's/<!--.*-->//g')"   # quita comentarios XML
+  # Quita comentarios XML uno a uno, NO-greedy (del primer <!-- a su primer -->),
+  # para no borrar tags validos situados ENTRE dos comentarios (un sed greedy
+  # '<!--.*-->' se comeria todo lo que hubiera entre el primero y el ultimo).
+  while [[ "$s" == *'<!--'* ]]; do
+    pre="${s%%<!--*}"; post="${s#*<!--}"
+    if [[ "$post" == *'-->'* ]]; then s="$pre${post#*-->}"; else s="$pre"; break; fi
+  done
   s="$(printf '%s' "$s" | sed 's/> *</></g')"        # colapsa espacios entre tags
   case "$s" in
     *'<key>com.apple.security.files.user-selected.read-write</key><true/>'*) return 0 ;;

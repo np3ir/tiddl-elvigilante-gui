@@ -72,6 +72,8 @@ ENT_SBX="$HDR<dict><key>com.apple.security.app-sandbox</key><true/></dict></plis
 ENT_NONE="$HDR<dict></dict></plist>"
 ENT_FALSE="$HDR<dict><key>com.apple.security.files.user-selected.read-write</key><false/></dict></plist>"
 ENT_CMT="$HDR<dict><!-- <key>com.apple.security.files.user-selected.read-write</key><true/> --><key>com.apple.security.app-sandbox</key><true/></dict></plist>"
+# clave REAL entre DOS comentarios: un strip greedy la borraria (falso rechazo)
+ENT_TWOCMT="$HDR<dict><!-- c1 --><key>com.apple.security.files.user-selected.read-write</key><true/><!-- c2 --></dict></plist>"
 # multilinea + espacios entre tags (como puede venir codesign): igual debe conceder
 ENT_MULTI="$HDR
 <dict>
@@ -86,6 +88,7 @@ if printf '%s' "$ENT_SBX"   | entitlement_file_access_granted; then bad "solo ap
 if printf '%s' "$ENT_NONE"  | entitlement_file_access_granted; then bad "sin claves NO debe conceder"; else pass "sin claves -> deniega"; fi
 if printf '%s' "$ENT_FALSE" | entitlement_file_access_granted; then bad "read-write=false NO debe conceder"; else pass "read-write=false -> deniega"; fi
 if printf '%s' "$ENT_CMT"   | entitlement_file_access_granted; then bad "mencion en comentario NO debe conceder"; else pass "comentario/doc -> deniega"; fi
+if printf '%s' "$ENT_TWOCMT"| entitlement_file_access_granted; then pass "clave valida entre dos comentarios -> concede"; else bad "dos comentarios (strip no-greedy)"; fi
 
 echo ""
 if [ "$fail" -gt 0 ]; then echo "$fail prueba(s) FAIL"; exit 1; else echo "TODAS LAS PRUEBAS OK"; exit 0; fi

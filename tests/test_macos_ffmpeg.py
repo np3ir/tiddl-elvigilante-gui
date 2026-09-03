@@ -377,7 +377,13 @@ def test_27_release_macos_no_longer_re_signs_ad_hoc():
 
 def test_28_release_macos_asserts_the_file_picker_entitlement():
     src = _read(RELEASE_MACOS)
-    assert "assert_required_entitlement" in src
+    # an EXECUTABLE (non-comment) line must invoke the guard and abort on failure —
+    # a mere mention in a comment must not satisfy this
+    code_lines = [ln.strip() for ln in src.splitlines() if not ln.lstrip().startswith("#")]
+    assert any(
+        ln.startswith('assert_required_entitlement "$APP"') and "|| exit 1" in ln
+        for ln in code_lines
+    )
 
 
 def test_29_release_lib_has_a_tested_entitlement_guard():
