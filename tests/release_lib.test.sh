@@ -64,5 +64,28 @@ fi
 rm -f "$APPT/Contents/MacOS/realff"
 if expect_accept assert_no_bundled_ffmpeg "$APPT"; then pass "app de nuevo limpia -> aceptado"; else bad "app limpia 2"; fi
 
+echo "-- 5. guarda del entitlement de file-picker (macOS Browse) --"
+HDR='<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0">'
+ENT_RW="$HDR<dict><key>com.apple.security.app-sandbox</key><false/><key>com.apple.security.files.user-selected.read-write</key><true/></dict></plist>"
+ENT_RO="$HDR<dict><key>com.apple.security.files.user-selected.read-only</key><true/></dict></plist>"
+ENT_SBX="$HDR<dict><key>com.apple.security.app-sandbox</key><true/></dict></plist>"
+ENT_NONE="$HDR<dict></dict></plist>"
+ENT_FALSE="$HDR<dict><key>com.apple.security.files.user-selected.read-write</key><false/></dict></plist>"
+ENT_CMT="$HDR<dict><!-- <key>com.apple.security.files.user-selected.read-write</key><true/> --><key>com.apple.security.app-sandbox</key><true/></dict></plist>"
+# multilinea + espacios entre tags (como puede venir codesign): igual debe conceder
+ENT_MULTI="$HDR
+<dict>
+  <key>com.apple.security.files.user-selected.read-write</key>
+  <true/>
+</dict>
+</plist>"
+if printf '%s' "$ENT_RW"    | entitlement_file_access_granted; then pass "read-write=true -> concede"; else bad "read-write=true"; fi
+if printf '%s' "$ENT_RO"    | entitlement_file_access_granted; then pass "read-only=true -> concede"; else bad "read-only=true"; fi
+if printf '%s' "$ENT_MULTI" | entitlement_file_access_granted; then pass "multilinea con espacios -> concede"; else bad "multilinea"; fi
+if printf '%s' "$ENT_SBX"   | entitlement_file_access_granted; then bad "solo app-sandbox NO debe conceder"; else pass "solo app-sandbox -> deniega"; fi
+if printf '%s' "$ENT_NONE"  | entitlement_file_access_granted; then bad "sin claves NO debe conceder"; else pass "sin claves -> deniega"; fi
+if printf '%s' "$ENT_FALSE" | entitlement_file_access_granted; then bad "read-write=false NO debe conceder"; else pass "read-write=false -> deniega"; fi
+if printf '%s' "$ENT_CMT"   | entitlement_file_access_granted; then bad "mencion en comentario NO debe conceder"; else pass "comentario/doc -> deniega"; fi
+
 echo ""
 if [ "$fail" -gt 0 ]; then echo "$fail prueba(s) FAIL"; exit 1; else echo "TODAS LAS PRUEBAS OK"; exit 0; fi
