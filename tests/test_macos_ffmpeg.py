@@ -359,6 +359,43 @@ def test_18b_release_lib_has_a_tested_ffmpeg_guard_function():
     assert "-type f -o -type l" in lib and "-name 'ffmpeg'" in lib
 
 
+# --- macOS file-picker entitlement guards (#27, #28, #29) ------------------
+def test_27_release_macos_no_longer_re_signs_ad_hoc():
+    # Case A fix: `flet build macos` already signs the .app WITH the file-picker
+    # entitlement (com.apple.security.files.user-selected.read-write); the ad-hoc
+    # re-sign `codesign --force --deep --sign -` (no --entitlements) stripped it,
+    # breaking Browse. Since #24 nothing modifies the .app after the build, the
+    # redundant+harmful re-sign is removed; strict verify stays the hard gate.
+    src = _read(RELEASE_MACOS)
+    # only executable lines count — a comment may still explain WHY it was removed
+    code_lines = [ln for ln in src.splitlines() if not ln.lstrip().startswith("#")]
+    assert not any("codesign --force --deep --sign -" in ln for ln in code_lines), (
+        "the redundant ad-hoc re-sign must be gone from the build steps"
+    )
+    assert "codesign --verify --deep --strict" in src
+
+
+def test_28_release_macos_asserts_the_file_picker_entitlement():
+    src = _read(RELEASE_MACOS)
+    # an EXECUTABLE (non-comment) line must invoke the guard and abort on failure —
+    # a mere mention in a comment must not satisfy this
+    code_lines = [ln.strip() for ln in src.splitlines() if not ln.lstrip().startswith("#")]
+    assert any(
+        ln.startswith('assert_required_entitlement "$APP"') and "|| exit 1" in ln
+        for ln in code_lines
+    )
+
+
+def test_29_release_lib_has_a_tested_entitlement_guard():
+    lib = _read(os.path.join(ROOT, "release_lib.sh"))
+    assert "entitlement_file_access_granted()" in lib
+    assert "assert_required_entitlement()" in lib
+    # reads the REAL signed entitlements from the bundle (not a source-tree grep)
+    assert "codesign -d --entitlements" in lib
+    # the exact key the Flet file-picker (get_directory_path) requires
+    assert "com.apple.security.files.user-selected.read-write" in lib
+
+
 # --- invariants (#19, #20) -------------------------------------------------
 def test_19_app_version_unchanged_ast():
     assert tep._app_version_ok(_read(MAIN_PY)) is True  # APP_VERSION == "1.0.24" (robust AST)

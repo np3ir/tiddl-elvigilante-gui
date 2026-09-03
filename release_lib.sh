@@ -80,3 +80,47 @@ assert_no_bundled_ffmpeg() {
   fi
   return 0
 }
+
+# macOS: lee un plist de entitlements por STDIN y devuelve 0 (true) si declara
+# acceso a archivos seleccionados por el usuario — read-write O read-only con
+# valor <true/>. Es el entitlement que el file-picker de Flet (get_directory_path,
+# main.py) exige; sin el, lanza PlatformException(ENTITLEMENT_NOT_FOUND) en el
+# boton "Browse". El match es ESTRUCTURAL (la clave inmediatamente seguida de
+# <true/>, tras eliminar comentarios XML y colapsar espacios entre tags): una
+# mencion del identificador dentro de un comentario o de un valor de texto NO
+# cuenta, y read-write=<false/> tampoco concede. Solo builtins + tr/sed.
+entitlement_file_access_granted() {
+  local s pre post
+  s="$(cat)"
+  s="$(printf '%s' "$s" | tr -d '\n\r\t')"
+  # Quita comentarios XML uno a uno, NO-greedy (del primer <!-- a su primer -->),
+  # para no borrar tags validos situados ENTRE dos comentarios (un sed greedy
+  # '<!--.*-->' se comeria todo lo que hubiera entre el primero y el ultimo).
+  while [[ "$s" == *'<!--'* ]]; do
+    pre="${s%%<!--*}"; post="${s#*<!--}"
+    if [[ "$post" == *'-->'* ]]; then s="$pre${post#*-->}"; else s="$pre"; break; fi
+  done
+  s="$(printf '%s' "$s" | sed 's/> *</></g')"        # colapsa espacios entre tags
+  case "$s" in
+    *'<key>com.apple.security.files.user-selected.read-write</key><true/>'*) return 0 ;;
+    *'<key>com.apple.security.files.user-selected.read-only</key><true/>'*)  return 0 ;;
+  esac
+  return 1
+}
+
+# macOS: aborta (return 1) si el .app NO declara el entitlement de acceso a
+# archivos seleccionado por el usuario que get_directory_path (Browse) exige.
+# Lee los entitlements REALES firmados del bundle con codesign y los valida con
+# el parser estructural de arriba. Guarda dura: tras quitar la re-firma ad-hoc
+# redundante (que borraba el entitlement generado por 'flet build'), esto impide
+# volver a publicar un DMG cuyo bundle haya perdido el permiso.
+# Uso:  assert_required_entitlement "<ruta .app>"  || exit 1
+assert_required_entitlement() {
+  local app="$1" ent
+  ent="$(codesign -d --entitlements - "$app" 2>/dev/null)" || ent=""
+  if printf '%s' "$ent" | entitlement_file_access_granted; then
+    return 0
+  fi
+  echo "ERROR: el .app no declara 'com.apple.security.files.user-selected.read-write' (ni read-only); el file-picker (Browse) fallaria con ENTITLEMENT_NOT_FOUND. Una re-firma sin --entitlements elimina el permiso que genera 'flet build'." >&2
+  return 1
+}
