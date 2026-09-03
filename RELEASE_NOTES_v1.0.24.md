@@ -1,8 +1,8 @@
 # tiddl by ElVigilante v1.0.24
 
-> **Source-prepared, not yet released.** This describes source prepared for GUI
-> **1.0.24**. No build, installer, or GitHub Release exists yet, and nothing here is
-> installed, signed, or notarized. The current public release is **1.0.23**.
+> **Release v1.0.24.** Windows, Linux and macOS artifacts were built and validated
+> from the audited v1.0.24 source. macOS is ad-hoc signed (not notarized). This
+> release supersedes GUI v1.0.23.
 
 ## 🇬🇧 What's new
 
@@ -45,12 +45,12 @@ tells you and the app stays open. Windows still bundles `ffmpeg.exe`. The first
 v1.0.24 macOS DMG (which bundled a non-portable Homebrew ffmpeg) was rejected and
 never published.
 
-**Public 1.0.23 vs. prepared 1.0.24 source.**
+**Release lineage.**
 
 - **Public GUI 1.0.23** is an immutable artifact bundling engine **v1.5.4**; it does
   **not** contain B1/B2.
-- **GUI 1.0.24** is prepared source with engine **v1.5.5** + B1 + B2, and is **not
-  yet built, installed, or published**.
+- **GUI 1.0.24** includes engine **v1.5.5** + B1 + B2. Its Windows, Linux and
+  macOS artifacts passed their platform-specific build and smoke gates.
 
 ## 🇪🇸 Novedades
 
@@ -94,9 +94,9 @@ la app sigue abierta. Windows sigue incluyendo `ffmpeg.exe`. El primer DMG v1.0.
 macOS (que empaquetaba un ffmpeg de Homebrew no portable) fue rechazado y nunca
 publicado.
 
-**Pública 1.0.23 vs. fuente preparada 1.0.24.**
+**Historial de la release.**
 
 - La **GUI 1.0.23 pública** es un artefacto inmutable con motor **v1.5.4**; **no**
   contiene B1/B2.
-- La **GUI 1.0.24** es fuente preparada con motor **v1.5.5** + B1 + B2, y **todavía
-  no está construida, instalada ni publicada**.
+- La **GUI 1.0.24** incluye el motor **v1.5.5** + B1 + B2. Sus artefactos para
+  Windows, Linux y macOS superaron los gates de build y smoke de cada plataforma.

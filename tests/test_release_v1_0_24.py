@@ -106,23 +106,23 @@ def test_adopt_revalidation_timing_is_precise_in_both_docs():
 
 
 # ---------------------------------------------------------------------------
-# 7 & 8: distinguish public 1.0.23 from unpublished 1.0.24, and never present
-# v1.5.4 as the engine of 1.0.24.
+# 7 & 8: preserve release lineage and never present v1.5.4 as the engine of
+# v1.0.24.
 # ---------------------------------------------------------------------------
-def _distinguishes_public_from_prepared(text):
+def _describes_release_lineage(text):
     low = text.lower()
     has_both_versions = "1.0.23" in text and "1.0.24" in text
-    not_yet = any(p in low for p in ("not yet", "todavía", "no publicada", "no publicado",
-                                     "not been built", "not built"))
-    return has_both_versions and not_yet
+    has_platforms = all(p in low for p in ("windows", "linux", "macos"))
+    stale = any(p in low for p in ("source-prepared", "not yet built", "todavía sin construir"))
+    return has_both_versions and has_platforms and not stale
 
 
-def test_changelog_distinguishes_public_and_prepared():
-    assert _distinguishes_public_from_prepared(_read(CHANGELOG))
+def test_changelog_describes_release_lineage():
+    assert _describes_release_lineage(_read(CHANGELOG))
 
 
-def test_notes_distinguish_public_and_prepared():
-    assert _distinguishes_public_from_prepared(_read(NOTES))
+def test_notes_describe_release_lineage():
+    assert _describes_release_lineage(_read(NOTES))
 
 
 def test_no_doc_line_calls_v1_0_24_a_v1_5_4_engine():
