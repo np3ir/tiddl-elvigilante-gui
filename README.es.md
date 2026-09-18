@@ -2,6 +2,8 @@
 
 [English](README.md) · **Español**
 
+📖 **[Manual de uso](docs/MANUAL.es.md)** — guía paso a paso (instalar, iniciar sesión, calidad, playlists, ajustes).
+
 > [!WARNING]
 > Esta app es solo para fines personales, educativos y de archivo. No está afiliada con TIDAL. Los usuarios deben asegurarse de que su uso cumpla con los términos de servicio de TIDAL y con todas las leyes de derechos de autor locales aplicables. El contenido descargado es para uso personal y no puede compartirse ni redistribuirse. El desarrollador no asume ninguna responsabilidad por el mal uso de esta app.
 
