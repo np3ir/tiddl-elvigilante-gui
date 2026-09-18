@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Manual de uso bilingüe (EN/ES) de tiddl GUI — un descargador de música: instalar, iniciar sesión, calidad, playlists y ajustes.">
+<meta property="og:title" content="tiddl GUI — Manual de uso">
+<meta property="og:description" content="Guía paso a paso de un descargador de música: instalar, iniciar sesión, calidad, playlists y ajustes.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='.9em'%20font-size='90'%3E%F0%9F%8E%A7%3C/text%3E%3C/svg%3E">
+<title>tiddl GUI — Manual de uso</title>
+<style>
+  :root{
+    --bg:#f6f4fb; --surface:#ffffff; --surface-2:#efeaf7; --surface-3:#e7e0f4;
+    --ink:#1b1730; --muted:#645d7c; --border:#e3ddef; --border-strong:#d3c9ea;
+    --accent:#6d3ff2; --accent-soft:#efe8ff; --accent-ink:#ffffff;
+    --hi:#0e9384; --hi-soft:#dcf5f1;
+    --warn:#b4530b; --warn-soft:#fbeadb;
+    --danger:#c02637;
+    --shadow:0 1px 2px rgba(27,23,48,.05), 0 8px 24px rgba(27,23,48,.06);
+    --shadow-lift:0 2px 4px rgba(27,23,48,.08), 0 18px 44px rgba(27,23,48,.12);
+    --radius:14px; --radius-sm:9px;
+    --display:"Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+    --body:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#120f1a; --surface:#1a1626; --surface-2:#221d32; --surface-3:#2b2540;
+      --ink:#efeafc; --muted:#a89fc4; --border:#2c2640; --border-strong:#3a3255;
+      --accent:#9b7bff; --accent-soft:#26203a; --accent-ink:#160f2b;
+      --hi:#34c9b6; --hi-soft:#12312e;
+      --warn:#e8a35c; --warn-soft:#33260f;
+      --danger:#ff6b7d;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.45);
+      --shadow-lift:0 2px 4px rgba(0,0,0,.5), 0 22px 50px rgba(0,0,0,.55);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#120f1a; --surface:#1a1626; --surface-2:#221d32; --surface-3:#2b2540;
+    --ink:#efeafc; --muted:#a89fc4; --border:#2c2640; --border-strong:#3a3255;
+    --accent:#9b7bff; --accent-soft:#26203a; --accent-ink:#160f2b;
+    --hi:#34c9b6; --hi-soft:#12312e;
+    --warn:#e8a35c; --warn-soft:#33260f;
+    --danger:#ff6b7d;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.45);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.5), 0 22px 50px rgba(0,0,0,.55);
+  }
+
+  *{box-sizing:border-box}
+  html{color-scheme:light dark;}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--body); line-height:1.6;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;}
+  img{max-width:100%; height:auto;}
+  [hidden]{display:none !important;}
+  ::selection{background:var(--accent); color:var(--accent-ink);}
+
+  .bar{position:sticky; top:0; z-index:30; background:color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter:saturate(1.4) blur(10px); border-bottom:1px solid var(--border);}
+  .bar-in{max-width:920px; margin:0 auto; padding:10px 20px; display:flex; align-items:center; gap:14px;}
+  .brand{display:flex; align-items:center; gap:10px; font-family:var(--display); font-weight:800;
+    letter-spacing:-.02em; font-size:16px;}
+  .brand .dot{width:22px; height:22px; border-radius:7px; flex:none;
+    background:linear-gradient(140deg, var(--accent), var(--hi)); box-shadow:var(--shadow);}
+  .bar-nav{margin-left:auto; display:flex; gap:2px; align-items:center; flex-wrap:wrap;}
+  .bar-nav a{color:var(--muted); text-decoration:none; font-size:13px; font-weight:500;
+    padding:6px 10px; border-radius:8px;}
+  .bar-nav a:hover{color:var(--ink); background:var(--surface-2);}
+  .seg{display:inline-flex; border:1px solid var(--border-strong); border-radius:9px; overflow:hidden; margin-left:6px;}
+  .seg button{font-family:var(--body); font-weight:600; font-size:12px; letter-spacing:.03em;
+    border:0; background:var(--surface); color:var(--muted); padding:6px 11px; cursor:pointer;}
+  .seg button[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink);}
+  .seg button+button{border-left:1px solid var(--border-strong);}
+  @media (max-width:640px){ .bar-nav a{display:none} }
+
+  main{max-width:920px; margin:0 auto; padding:16px 20px 90px;}
+
+  .hero{padding:40px 0 26px; border-bottom:1px solid var(--border);}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--accent); font-weight:500;}
+  h1{font-family:var(--display); font-weight:800; letter-spacing:-.03em; line-height:1.04;
+    font-size:clamp(2.1rem, 6vw, 3.4rem); margin:.35em 0 .15em; text-wrap:balance;}
+  .lede{font-size:clamp(1.02rem,2.4vw,1.18rem); color:var(--muted); max-width:60ch; margin:0;}
+  .meta-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:20px;}
+  .chip{font-size:12.5px; font-weight:500; padding:5px 11px; border-radius:999px;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--muted);
+    display:inline-flex; gap:6px; align-items:center;}
+  .chip b{color:var(--ink); font-weight:600;}
+
+  h2{font-family:var(--display); font-weight:700; letter-spacing:-.02em;
+    font-size:clamp(1.5rem,3.5vw,2rem); margin:0 0 4px; text-wrap:balance;}
+  h3{font-family:var(--display); font-weight:700; letter-spacing:-.01em; font-size:1.16rem; margin:0 0 6px;}
+  section{padding-block:38px; border-bottom:1px solid var(--border);}
+  section>.kicker{font-family:var(--mono); font-size:12px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:14px;}
+  p{margin:.5em 0;} p:first-child{margin-top:0;}
+  a.inline{color:var(--accent); text-decoration:underline; text-underline-offset:2px; text-decoration-thickness:1px;}
+  strong{font-weight:600;}
+  code, kbd{font-family:var(--mono); font-size:.86em;}
+  code{background:var(--surface-2); border:1px solid var(--border); border-radius:6px; padding:1px 6px;}
+  kbd{background:var(--surface-3); border:1px solid var(--border-strong); border-radius:6px;
+    padding:1px 7px; box-shadow:0 1px 0 var(--border-strong);}
+  .ui{font-family:var(--body); font-weight:600; color:var(--accent);
+    background:var(--accent-soft); border-radius:6px; padding:1px 7px; white-space:nowrap;}
+  :root[data-theme="dark"] .ui, :root:not([data-theme="light"]) .ui{color:var(--ink);}
+
+  .steps{display:flex; flex-direction:column; gap:16px; counter-reset:s;}
+  .step{display:grid; grid-template-columns:auto 1fr; gap:18px; align-items:start;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:20px 22px; box-shadow:var(--shadow);}
+  .step .num{counter-increment:s; font-family:var(--display); font-weight:800; font-size:1.35rem;
+    width:44px; height:44px; border-radius:12px; display:grid; place-items:center; flex:none;
+    background:var(--accent); color:var(--accent-ink); letter-spacing:-.03em;}
+  .step .num::before{content:counter(s);}
+  .step h3{margin-top:3px;}
+  .step ul{margin:.4em 0 0; padding-left:1.1em;} .step li{margin:.25em 0;}
+  @media (max-width:520px){ .step{grid-template-columns:1fr; gap:10px} .step .num{width:38px;height:38px;font-size:1.15rem} }
+
+  figure{margin:22px 0 0;}
+  .frame{border:1px solid var(--border-strong); border-radius:12px; overflow:hidden;
+    background:var(--surface-2); box-shadow:var(--shadow-lift);}
+  .frame .tt{display:flex; align-items:center; gap:7px; padding:9px 12px; background:var(--surface-3);
+    border-bottom:1px solid var(--border);}
+  .frame .tt i{width:11px; height:11px; border-radius:50%; background:var(--border-strong); flex:none;}
+  .frame .tt span{font-family:var(--mono); font-size:11.5px; color:var(--muted); margin-left:6px;}
+  .frame img{display:block; width:100%; height:auto;}
+  figcaption{font-size:13px; color:var(--muted); margin-top:9px; padding-left:2px;}
+
+  .note{border-radius:var(--radius-sm); padding:14px 16px; margin:18px 0 0;
+    border:1px solid var(--border); background:var(--surface-2); font-size:.96rem;}
+  .note .lbl{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    font-weight:500; display:block; margin-bottom:4px;}
+  .note.tip{background:var(--hi-soft); border-color:color-mix(in srgb, var(--hi) 35%, var(--border));}
+  .note.tip .lbl{color:var(--hi);}
+  .note.warn{background:var(--warn-soft); border-color:color-mix(in srgb, var(--warn) 40%, var(--border));}
+  .note.warn .lbl{color:var(--warn);}
+  .note.key .lbl{color:var(--accent);}
+
+  .tbl-wrap{overflow-x:auto; margin-top:18px; border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow);}
+  table{border-collapse:collapse; width:100%; font-size:.93rem; min-width:520px; background:var(--surface);}
+  th,td{text-align:left; padding:11px 14px; border-bottom:1px solid var(--border); vertical-align:top;}
+  thead th{font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--muted); font-weight:500; background:var(--surface-2);}
+  tbody tr:last-child td{border-bottom:0;}
+  td b{font-weight:600;} td .q{font-family:var(--mono); font-weight:500; color:var(--accent);}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(250px,1fr)); gap:14px; margin-top:18px;}
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px 17px; box-shadow:var(--shadow);}
+  .card h3{font-size:1.02rem; display:flex; align-items:center; gap:8px;}
+  .card h3 .ic{font-size:1.05rem; filter:saturate(1.1);}
+  .card ul{margin:.5em 0 0; padding-left:1.05em;} .card li{margin:.3em 0; font-size:.92rem;}
+  .card li b{font-weight:600;}
+  .card .muted{color:var(--muted); font-size:.88rem; margin:.4em 0 0;}
+
+  .opts{display:grid; gap:10px; margin-top:16px;}
+  .opt{display:grid; grid-template-columns:auto 1fr; gap:13px; align-items:baseline;
+    border:1px solid var(--border); border-radius:var(--radius-sm); padding:13px 15px; background:var(--surface);}
+  .opt .tag{font-family:var(--body); font-weight:600; font-size:.9rem; color:var(--accent);
+    background:var(--accent-soft); border-radius:7px; padding:3px 10px; white-space:nowrap;}
+  :root[data-theme="dark"] .opt .tag, :root:not([data-theme="light"]) .opt .tag{color:var(--ink);}
+  .opt p{margin:0; font-size:.93rem; color:var(--muted);}
+  .opt.hot .tag{color:var(--warn); background:var(--warn-soft);}
+
+  details{border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface);
+    padding:0 16px; margin-top:10px; box-shadow:var(--shadow);}
+  details+details{margin-top:8px;}
+  summary{cursor:pointer; font-weight:600; padding:13px 0; list-style:none; display:flex; gap:10px; align-items:center;}
+  summary::-webkit-details-marker{display:none;}
+  summary::before{content:"+"; font-family:var(--mono); color:var(--accent); font-weight:600; width:1ch;}
+  details[open] summary::before{content:"–";}
+  details .body{padding:0 0 15px 1ch; color:var(--muted); font-size:.95rem;}
+  details .body code{color:var(--ink);}
+
+  footer{padding:34px 0 0; color:var(--muted); font-size:13px;}
+  footer .disc{font-size:12px; margin-top:12px; padding:13px 15px; border:1px dashed var(--border-strong);
+    border-radius:var(--radius-sm); background:var(--surface-2);}
+
+  .lang-hide{display:none !important;}
+  a:focus-visible, button:focus-visible, summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:6px;}
+  @media (prefers-reduced-motion:no-preference){
+    .step,.card,.opt{transition:transform .15s ease, box-shadow .15s ease;}
+    .step:hover,.card:hover{box-shadow:var(--shadow-lift);}
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+</head>
+<body>
+
+<div class="bar">
+  <div class="bar-in">
+    <div class="brand"><span class="dot" aria-hidden="true"></span> tiddl GUI</div>
+    <nav class="bar-nav" aria-label="Sections">
+      <a href="#install" data-en="Install" data-es="Instalar">Install</a>
+      <a href="#quality" data-en="Quality" data-es="Calidad">Quality</a>
+      <a href="#playlists" data-en="Playlists" data-es="Listas">Playlists</a>
+      <a href="#settings" data-en="Settings" data-es="Ajustes">Settings</a>
+      <a href="#help" data-en="Help" data-es="Ayuda">Help</a>
+    </nav>
+    <div class="seg" role="group" aria-label="Language">
+      <button id="btn-en" type="button" aria-pressed="false" onclick="setLang('en')">EN</button>
+      <button id="btn-es" type="button" aria-pressed="true" onclick="setLang('es')">ES</button>
+    </div>
+  </div>
+</div>
+
+<main>
+<!-- ================= ENGLISH ================= -->
+<div id="lang-en" lang="en" class="lang-hide">
+
+  <header class="hero">
+    <span class="eyebrow">User Manual · tiddl GUI by ElVigilante</span>
+    <h1>Download your music, the simple way.</h1>
+    <p class="lede">Paste a link, pick the quality, and go — a desktop app with the full power of the <code>tiddl</code> engine underneath. This manual walks you from install to your first lossless download and through every setting.</p>
+    <div class="meta-row">
+      <span class="chip">🖥️ <b>Windows</b> · Linux · macOS</span>
+      <span class="chip">🎧 <b>FLAC</b> · Hi-Res · Dolby Atmos</span>
+      <span class="chip">🌐 <b>EN / ES</b></span>
+      <span class="chip">🔑 Needs a <b>music-service</b> subscription (HiFi for lossless)</span>
+    </div>
+  </header>
+
+  <section id="install">
+    <p class="kicker">Getting started · 3 steps</p>
+    <h2>Install, log in, download</h2>
+    <div class="steps">
+      <article class="step">
+        <div class="num" aria-hidden="true"></div>
+        <div>
+          <h3>Install the app</h3>
+          <p><b>Windows</b> — download <code>tiddl-ElVigilante-Setup-x.x.x.exe</code> from the Releases page and run it. Everything is bundled: no Python, no ffmpeg to install. SmartScreen will warn because the installer is unsigned — click <span class="ui">More info → Run anyway</span>.</p>
+          <ul>
+            <li><b>Linux</b> — extract <code>tiddl-ElVigilante-x.x.x-linux-x64.tar.gz</code>, install ffmpeg from your distro (<code>sudo apt install ffmpeg</code>), then run <code>./tiddl-gui</code>.</li>
+            <li><b>macOS</b> — open the <code>.dmg</code> (Apple Silicon), drag the app to Applications. If it says “damaged”, clear the quarantine flag once: <code>xattr -cr "/Applications/tiddl-gui.app"</code>.</li>
+          </ul>
+        </div>
+      </article>
+      <article class="step">
+        <div class="num" aria-hidden="true"></div>
+        <div>
+          <h3>Log in</h3>
+          <p>Open the app and click <span class="ui">Log in</span>. It uses a device-code login flow, so your browser opens to approve the app.</p>
+          <div class="note key"><span class="lbl">Important</span>The browser opens <b>twice</b> — once for Hi-Res and once for Lossless. <b>Approve both</b>. Login only counts as complete when both quality tokens are saved. Use <span class="ui">Log out</span> anytime to clear the session.</div>
+        </div>
+      </article>
+      <article class="step">
+        <div class="num" aria-hidden="true"></div>
+        <div>
+          <h3>Your first download</h3>
+          <p>On the <span class="ui">Download</span> tab, paste one or more music links into <span class="ui">the links box</span> — a track, album, playlist, artist or mix, <b>one per line</b>. Pick a <b>Quality</b>, then press <span class="ui">Download</span>. The progress bar shows <code>N/M · %</code>, the current track and a timestamped log.</p>
+          <p style="color:var(--muted);font-size:.9rem;">Before your very first download, open <span class="ui">Settings</span> and set your <b>Download folder</b>.</p>
+        </div>
+      </article>
+    </div>
+    <figure>
+      <div class="frame"><div class="tt" aria-hidden="true"><i></i><i></i><i></i><span>tiddl-gui — Download</span></div>
+        <img src="../assets/screenshots/01-download.png" alt="The Download tab: a links box, quality selector, and the Download button."></div>
+      <figcaption>The Download tab — paste links, choose quality and edition, then Download.</figcaption>
+    </figure>
+  </section>
+
+  <section id="quality">
+    <p class="kicker">Audio</p>
+    <h2>Edition &amp; quality</h2>
+    <p>Two independent controls decide <em>what</em> you get and <em>how strictly</em>.</p>
+
+    <h3 style="margin-top:24px">Quality tiers</h3>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Tier</th><th>What it delivers</th></tr></thead>
+      <tbody>
+        <tr><td><span class="q">Low</span> / <span class="q">Normal</span></td><td>Lossy AAC — smallest files, no subscription tier needed for Low.</td></tr>
+        <tr><td><span class="q">High (lossless)</span></td><td>CD-quality FLAC. No ffmpeg remux needed, so it’s the fastest lossless option.</td></tr>
+        <tr><td><span class="q">MAX (Hi-Res lossless)</span></td><td>Up to 24-bit Hi-Res FLAC. <b>High and MAX prefer FLAC</b>; an Atmos-only track at MAX climbs to the best 24-bit FLAC available.</td></tr>
+        <tr><td><span class="q">Atmos (Dolby Atmos)</span></td><td>Takes the Dolby Atmos edition first, where one exists.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 style="margin-top:28px">Audio edition &amp; quality policy</h3>
+    <div class="opts">
+      <div class="opt"><span class="tag">Automatic</span><p>Keeps the album or track from the link you supplied — including Atmos when that’s the linked edition.</p></div>
+      <div class="opt"><span class="tag">Stereo only</span><p>Searches the catalog for a matching stereo edition and rejects an Atmos manifest before any audio transfers. Works on direct <b>album</b> links <b>and</b> whole <b>artist</b> links; an album with no stereo edition keeps its original.</p></div>
+      <div class="opt"><span class="tag">Flexible</span><p>Treats the selected quality as a <b>ceiling</b> — uses the best available tier at or below it (MAX may fall back to High, Normal or Low).</p></div>
+      <div class="opt"><span class="tag">Strict</span><p>Requires the <b>exact</b> tier. If the service won’t deliver it, the download stops instead of quietly degrading.</p></div>
+    </div>
+    <div class="note tip"><span class="lbl">Check first, download later</span>Use <span class="ui">Check available versions</span> (direct album links only, with <span class="ui">Stereo only</span> selected) to see a compatible stereo edition and compare track-list differences <b>before</b> transferring any audio.</div>
+  </section>
+
+  <section id="playlists">
+    <p class="kicker">Big jobs</p>
+    <h2>Playlists &amp; artists</h2>
+    <p>When you paste a playlist or artist link, the app asks how you want to expand it — so the folder layout and templates come out right.</p>
+
+    <h3 style="margin-top:20px">Playlist link detected — how to download it</h3>
+    <div class="opts">
+      <div class="opt"><span class="tag">As playlist</span><p>Playlist template and folder, plus an <code>.m3u</code> if enabled.</p></div>
+      <div class="opt"><span class="tag">Full albums</span><p>The complete album of every track (deduplicated).</p></div>
+      <div class="opt hot"><span class="tag">Artist discographies</span><p>Everything by every credited artist — <b>this can be a LOT</b>.</p></div>
+      <div class="opt"><span class="tag">Only the tracks</span><p>Each track standalone, with the track template and folders.</p></div>
+    </div>
+
+    <div class="note warn"><span class="lbl">Safety dialog</span>For whole-artist downloads, a confirmation dialog warns you before pulling a full discography (hundreds of albums) and lets you choose singles / videos per run. Nothing large starts without a <span class="ui">Continue</span>. A link to a single track inside an album asks: <span class="ui">Full album</span> or <span class="ui">Only that track</span>.</div>
+
+    <p style="margin-top:18px"><b>Skip compilations / live albums.</b> Under <span class="ui">Settings → Advanced download</span>, two checkboxes leave compilations and/or live albums out of whole-artist downloads. They’re identified from the service’s artist page — the same Compilations / Live sections the app shows — so the match is reliable. Off by default.</p>
+
+    <figure>
+      <div class="frame"><div class="tt" aria-hidden="true"><i></i><i></i><i></i><span>tiddl-gui — Playlist link detected</span></div>
+        <img src="../assets/screenshots/04-playlist-dialog.png" alt="The playlist dialog offering: as playlist, full albums, artist discographies, or only the tracks."></div>
+      <figcaption>The expand dialog decides the folder layout for a playlist.</figcaption>
+    </figure>
+  </section>
+
+  <section id="settings">
+    <p class="kicker">Reference</p>
+    <h2>Settings, section by section</h2>
+    <p>Settings apply to every download from this window. <span class="ui">Save as defaults</span> also writes them to tiddl’s <code>config.toml</code> (a backup is made), so the command line uses them too. <span class="ui">Reload</span> re-reads that file.</p>
+    <div class="grid">
+      <div class="card"><h3><span class="ic">📁</span> Folders</h3><ul>
+        <li><b>Download folder</b> — where music is saved.</li>
+        <li><b>Scan folder</b> — where existing downloads are detected (usually the same).</li>
+        <li><b>Video folder</b> — optional override for videos.</li>
+        <li><b>Playlist folder</b> — optional; playlists can land on another disk.</li>
+      </ul></div>
+      <div class="card"><h3><span class="ic">🔤</span> File naming</h3><ul>
+        <li>Templates for <b>default / track / album / playlist / video / mix</b>.</li>
+        <li><b>Artist separator</b> for multi-artist names.</li>
+      </ul><p class="muted">Uses variables like <code>{album.artist}</code>, <code>{album.title}</code>, <code>{item.number:02}</code> — see the in-app <b>Help</b> tab.</p></div>
+      <div class="card"><h3><span class="ic">🏷️</span> Metadata / tags</h3><ul>
+        <li><b>Embed cover art</b> in the file.</li>
+        <li><b>Embed album review</b> in the comment.</li>
+      </ul></div>
+      <div class="card"><h3><span class="ic">🖼️</span> Cover file (.jpg)</h3><ul>
+        <li><b>Save a cover.jpg</b> next to the audio.</li>
+        <li><b>Size</b> (px, max 1280).</li>
+        <li><b>Save for:</b> Tracks / Albums / Playlists / Mixes.</li>
+      </ul></div>
+      <div class="card"><h3><span class="ic">⚙️</span> Advanced download</h3><ul>
+        <li><b>Video quality</b>, <b>HiRes client</b> (auto / always / never).</li>
+        <li><b>Requests / min</b>, <b>Artist concurrency</b>, <b>Max tracks / session</b>.</li>
+        <li><b>Rewrite metadata</b> on existing files; <b>set file date</b> to release date.</li>
+        <li><b>Skip compilations / live albums</b> (artist downloads).</li>
+      </ul></div>
+      <div class="card"><h3><span class="ic">📃</span> Playlists (.m3u)</h3><ul>
+        <li><b>Generate .m3u</b> files.</li>
+        <li><b>Generate for:</b> Tracks / Albums / Playlists / Mixes.</li>
+      </ul></div>
+      <div class="card"><h3><span class="ic">🚀</span> Performance &amp; filters</h3><ul>
+        <li><b>Threads</b>, <b>Track delay</b>, <b>Album delay</b> (anti-bot).</li>
+        <li><b>Embed lyrics</b> in tags; <b>save .lrc</b> sidecar files.</li>
+        <li><b>Singles</b> / <b>Videos</b> filters.</li>
+      </ul></div>
+      <div class="card"><h3><span class="ic">🎨</span> Appearance</h3><ul>
+        <li><b>Language</b> — English / Español.</li>
+        <li><b>Theme</b> — violet dark or light.</li>
+        <li><b>Font size</b> — Normal / Large / Extra large.</li>
+      </ul><p class="muted">These lock while a download runs — finish or cancel first.</p></div>
+    </div>
+    <figure>
+      <div class="frame"><div class="tt" aria-hidden="true"><i></i><i></i><i></i><span>tiddl-gui — Settings</span></div>
+        <img src="../assets/screenshots/02-settings.png" alt="The Settings tab with its collapsible sections."></div>
+      <figcaption>Settings — QBDLX-style, every config option exposed.</figcaption>
+    </figure>
+  </section>
+
+  <section id="controls">
+    <p class="kicker">While it runs</p>
+    <h2>Progress, resume &amp; the log</h2>
+    <ul style="padding-left:1.1em">
+      <li><b>Resume</b> — tick <span class="ui">Resume (skip items already done)</span> to skip files already in your library on a re-run.</li>
+      <li><b>Re-download existing files</b> — the opposite: force a fresh copy.</li>
+      <li><b>Cancel</b> — stops the run cleanly; the log freezes instantly and no more items start.</li>
+      <li><b>Copy log</b> — puts the full timestamped log on your clipboard for troubleshooting.</li>
+      <li><b>Single-download lock</b> — multiple windows can’t hammer the API at once.</li>
+    </ul>
+    <div class="note tip"><span class="lbl">“Exists” is not an error</span>When a track shows <b>Exists</b>, it’s already in your Scan folder / library and is correctly skipped. <code>Total downloads: 0</code> means everything was already there — nothing failed.</div>
+  </section>
+
+  <section id="help">
+    <p class="kicker">Troubleshooting</p>
+    <h2>Common questions</h2>
+    <details><summary>Windows blocks the installer (SmartScreen)</summary><div class="body">The installer is unsigned. Click <b>More info → Run anyway</b>. It’s safe; it’s just not code-signed.</div></details>
+    <details><summary>macOS says the app is “damaged and can’t be opened”</summary><div class="body">That’s the quarantine flag on an unsigned app. Run once in Terminal: <code>chmod -R u+w "/Applications/tiddl-gui.app"</code> then <code>xattr -cr "/Applications/tiddl-gui.app"</code>, and open it again.</div></details>
+    <details><summary>I get rate-limited / 429 errors</summary><div class="body">Keep <b>HiRes client = auto</b> (Settings → Advanced) so the Hi-Res client is only used at MAX — that avoids most 429s. If you’re downloading a lot, lower <b>Requests / min</b> and add a small <b>Track delay</b>.</div></details>
+    <details><summary>“Not logged in”</summary><div class="body">Click <b>Log in</b> and approve <b>both</b> browser windows (Hi-Res + Lossless). Lossless/Hi-Res needs an active HiFi subscription.</div></details>
+    <details><summary>Downloads keep the wrong folder structure</summary><div class="body">For a playlist, the <b>expand dialog</b> (As playlist / Full albums / Artist discographies / Only the tracks) picks the layout. Templates live under <b>Settings → File naming</b>; the <b>Help</b> tab lists every variable.</div></details>
+    <details><summary>Where are my settings stored?</summary><div class="body"><b>Save as defaults</b> writes to tiddl’s <code>config.toml</code> (a timestamped backup is made first), so the CLI and the GUI share the same defaults.</div></details>
+
+    <figure>
+      <div class="frame"><div class="tt" aria-hidden="true"><i></i><i></i><i></i><span>tiddl-gui — Help</span></div>
+        <img src="../assets/screenshots/03-help.png" alt="The in-app Help tab listing naming-template variables."></div>
+      <figcaption>The in-app Help tab documents every naming-template variable.</figcaption>
+    </figure>
+  </section>
+
+  <footer>
+    <p>tiddl GUI by ElVigilante — a desktop front-end for the <a class="inline" href="https://github.com/np3ir/tiddl-elvigilante-gui">tiddl-elvigilante</a> downloader.</p>
+    <p class="disc">For personal, educational and archival use only. Not affiliated with any music streaming service. You are responsible for complying with your streaming service’s terms of service and your local copyright laws. Downloaded content is for personal use and may not be shared or redistributed.</p>
+  </footer>
+</div>
+
+<!-- ================= ESPAÑOL ================= -->
+<div id="lang-es" lang="es">
+
+  <header class="hero">
+    <span class="eyebrow">Manual de uso · tiddl GUI by ElVigilante</span>
+    <h1>Descarga tu música, sin complicarte.</h1>
+    <p class="lede">Pega un enlace, elige la calidad y listo — una app de escritorio con todo el poder del motor <code>tiddl</code> por debajo. Este manual te lleva desde la instalación hasta tu primera descarga sin pérdida, y por cada ajuste.</p>
+    <div class="meta-row">
+      <span class="chip">🖥️ <b>Windows</b> · Linux · macOS</span>
+      <span class="chip">🎧 <b>FLAC</b> · Hi-Res · Dolby Atmos</span>
+      <span class="chip">🌐 <b>EN / ES</b></span>
+      <span class="chip">🔑 Requiere una suscripción a un <b>servicio de música</b> (HiFi para sin pérdida)</span>
+    </div>
+  </header>
+
+  <section id="install-es">
+    <p class="kicker">Primeros pasos · 3 pasos</p>
+    <h2>Instalar, iniciar sesión, descargar</h2>
+    <div class="steps">
+      <article class="step">
+        <div class="num" aria-hidden="true"></div>
+        <div>
+          <h3>Instala la app</h3>
+          <p><b>Windows</b> — baja <code>tiddl-ElVigilante-Setup-x.x.x.exe</code> de la página de Releases y ejecútalo. Trae todo incluido: no hace falta Python ni ffmpeg. SmartScreen avisará porque el instalador no está firmado — pulsa <span class="ui">Más información → Ejecutar de todas formas</span>.</p>
+          <ul>
+            <li><b>Linux</b> — extrae <code>tiddl-ElVigilante-x.x.x-linux-x64.tar.gz</code>, instala ffmpeg de tu distro (<code>sudo apt install ffmpeg</code>) y corre <code>./tiddl-gui</code>.</li>
+            <li><b>macOS</b> — abre el <code>.dmg</code> (Apple Silicon) y arrastra la app a Aplicaciones. Si dice “dañado”, quita la cuarentena una vez: <code>xattr -cr "/Applications/tiddl-gui.app"</code>.</li>
+          </ul>
+        </div>
+      </article>
+      <article class="step">
+        <div class="num" aria-hidden="true"></div>
+        <div>
+          <h3>Inicia sesión en tu cuenta</h3>
+          <p>Abre la app y pulsa <span class="ui">Log in</span>. Usa un flujo de inicio de sesión por código de dispositivo, así que tu navegador se abre para aprobar la app.</p>
+          <div class="note key"><span class="lbl">Importante</span>El navegador se abre <b>dos veces</b> — una para Hi-Res y otra para Lossless. <b>Aprueba las dos</b>. El login solo cuenta como completo cuando se guardan ambos tokens de calidad. Usa <span class="ui">Log out</span> cuando quieras para cerrar la sesión.</div>
+        </div>
+      </article>
+      <article class="step">
+        <div class="num" aria-hidden="true"></div>
+        <div>
+          <h3>Tu primera descarga</h3>
+          <p>En la pestaña <span class="ui">Descargar</span>, pega uno o más enlaces de música en <span class="ui">la caja de enlaces</span> — canción, álbum, playlist, artista o mix, <b>uno por línea</b>. Elige una <b>Calidad</b> y pulsa <span class="ui">Descargar</span>. La barra muestra <code>N/M · %</code>, la canción actual y un registro con hora.</p>
+          <p style="color:var(--muted);font-size:.9rem;">Antes de tu primera descarga, abre <span class="ui">Ajustes</span> y fija tu <b>Carpeta de descarga</b>.</p>
+        </div>
+      </article>
+    </div>
+    <figure>
+      <div class="frame"><div class="tt" aria-hidden="true"><i></i><i></i><i></i><span>tiddl-gui — Descargar</span></div>
+        <img src="../assets/screenshots/01-download.png" alt="La pestaña Descargar: caja de enlaces, selector de calidad y botón Descargar."></div>
+      <figcaption>La pestaña Descargar — pega enlaces, elige calidad y edición, y Descargar.</figcaption>
+    </figure>
+  </section>
+
+  <section id="quality-es">
+    <p class="kicker">Audio</p>
+    <h2>Edición y calidad</h2>
+    <p>Dos controles independientes deciden <em>qué</em> obtienes y <em>con cuánta rigidez</em>.</p>
+
+    <h3 style="margin-top:24px">Niveles de calidad</h3>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Nivel</th><th>Qué entrega</th></tr></thead>
+      <tbody>
+        <tr><td><span class="q">Low</span> / <span class="q">Normal</span></td><td>AAC con pérdida — archivos más pequeños; Low no exige nivel de suscripción.</td></tr>
+        <tr><td><span class="q">High (sin pérdida)</span></td><td>FLAC calidad CD. No necesita remux con ffmpeg, así que es la opción sin pérdida más rápida.</td></tr>
+        <tr><td><span class="q">MAX (alta resolución)</span></td><td>FLAC Hi-Res hasta 24 bits. <b>High y MAX prefieren FLAC</b>; una canción solo-Atmos en MAX <b>sube</b> al mejor FLAC de 24 bits disponible.</td></tr>
+        <tr><td><span class="q">Atmos (Dolby Atmos)</span></td><td>Toma primero la edición Dolby Atmos, cuando existe.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 style="margin-top:28px">Edición de audio y política de calidad</h3>
+    <div class="opts">
+      <div class="opt"><span class="tag">Automática</span><p>Mantiene el álbum o canción del enlace que diste — incluido Atmos si esa es la edición enlazada.</p></div>
+      <div class="opt"><span class="tag">Solo estéreo</span><p>Busca en el catálogo una edición estéreo equivalente y rechaza un manifiesto Atmos antes de transferir audio. Funciona en enlaces de <b>álbum</b> directos <b>y</b> de <b>artista</b> completo; un álbum sin edición estéreo conserva la original.</p></div>
+      <div class="opt"><span class="tag">Flexible</span><p>Trata la calidad elegida como un <b>techo</b> — usa el mejor nivel disponible igual o por debajo (MAX puede bajar a High, Normal o Low).</p></div>
+      <div class="opt"><span class="tag">Estricta</span><p>Exige el nivel <b>exacto</b>. Si el servicio no lo entrega, la descarga se detiene en vez de degradarse en silencio.</p></div>
+    </div>
+    <div class="note tip"><span class="lbl">Revisa antes de bajar</span>Usa <span class="ui">Comprobar versiones disponibles</span> (solo enlaces de álbum directos, con <span class="ui">Solo estéreo</span>) para ver una edición estéreo compatible y comparar diferencias en la lista de canciones <b>antes</b> de transferir audio.</div>
+  </section>
+
+  <section id="playlists-es">
+    <p class="kicker">Trabajos grandes</p>
+    <h2>Playlists y artistas</h2>
+    <p>Cuando pegas un enlace de playlist o de artista, la app te pregunta cómo expandirlo — para que la estructura de carpetas y las plantillas salgan bien.</p>
+
+    <h3 style="margin-top:20px">Enlace de playlist detectado — cómo descargarlo</h3>
+    <div class="opts">
+      <div class="opt"><span class="tag">Como playlist</span><p>Plantilla y carpeta de playlist, más un <code>.m3u</code> si está activado.</p></div>
+      <div class="opt"><span class="tag">Álbumes completos</span><p>El álbum completo de cada canción (sin duplicados).</p></div>
+      <div class="opt hot"><span class="tag">Discografías de artista</span><p>Todo de cada artista acreditado — <b>puede ser MUCHÍSIMO</b>.</p></div>
+      <div class="opt"><span class="tag">Solo las canciones</span><p>Cada canción por separado, con su plantilla y carpetas.</p></div>
+    </div>
+
+    <div class="note warn"><span class="lbl">Diálogo de seguridad</span>Para descargas de artista completo, un diálogo te avisa antes de bajar una discografía entera (cientos de álbumes) y te deja elegir singles / videos por corrida. Nada grande arranca sin un <span class="ui">Continuar</span>. Un enlace a una canción dentro de un álbum pregunta: <span class="ui">Álbum completo</span> o <span class="ui">Solo esa canción</span>.</div>
+
+    <p style="margin-top:18px"><b>Saltar recopilatorios / álbumes en vivo.</b> En <span class="ui">Ajustes → Descarga avanzada</span>, dos casillas dejan fuera recopilatorios y/o discos en vivo en descargas de artista completo. Se identifican desde la página del artista del servicio — las mismas secciones de Recopilatorios / En vivo que muestra la app — así que el emparejamiento es fiable. Desactivadas por defecto.</p>
+
+    <figure>
+      <div class="frame"><div class="tt" aria-hidden="true"><i></i><i></i><i></i><span>tiddl-gui — Enlace de playlist detectado</span></div>
+        <img src="../assets/screenshots/04-playlist-dialog.png" alt="El diálogo de playlist: como playlist, álbumes completos, discografías de artista, o solo las canciones."></div>
+      <figcaption>El diálogo de expansión decide la estructura de carpetas de una playlist.</figcaption>
+    </figure>
+  </section>
+
+  <section id="settings-es">
+    <p class="kicker">Referencia</p>
+    <h2>Ajustes, sección por sección</h2>
+    <p>Los ajustes aplican a cada descarga de esta ventana. <span class="ui">Guardar como predeterminados</span> también los escribe en el <code>config.toml</code> de tiddl (se crea un respaldo), así la línea de comandos también los usa. <span class="ui">Recargar</span> vuelve a leer ese archivo.</p>
+    <div class="grid">
+      <div class="card"><h3><span class="ic">📁</span> Carpetas</h3><ul>
+        <li><b>Carpeta de descarga</b> — dónde se guarda la música.</li>
+        <li><b>Carpeta de escaneo</b> — dónde se detectan descargas existentes (normalmente la misma).</li>
+        <li><b>Carpeta de videos</b> — override opcional para videos.</li>
+        <li><b>Carpeta de listas</b> — opcional; las playlists pueden ir a otro disco.</li>
+      </ul></div>
+      <div class="card"><h3><span class="ic">🔤</span> Nombres de archivo</h3><ul>
+        <li>Plantillas para <b>predeterminado / canción / álbum / playlist / video / mix</b>.</li>
+        <li><b>Separador de artistas</b> para nombres con varios artistas.</li>
+      </ul><p class="muted">Usa variables como <code>{album.artist}</code>, <code>{album.title}</code>, <code>{item.number:02}</code> — mira la pestaña <b>Ayuda</b> dentro de la app.</p></div>
+      <div class="card"><h3><span class="ic">🏷️</span> Metadata / etiquetas</h3><ul>
+        <li><b>Incrustar carátula</b> en el archivo.</li>
+        <li><b>Incrustar reseña del álbum</b> en el comentario.</li>
+      </ul></div>
+      <div class="card"><h3><span class="ic">🖼️</span> Archivo de carátula (.jpg)</h3><ul>
+        <li><b>Guardar un cover.jpg</b> junto al audio.</li>
+        <li><b>Tamaño</b> (px, máx 1280).</li>
+        <li><b>Guardar para:</b> Canciones / Álbumes / Playlists / Mixes.</li>
+      </ul></div>
+      <div class="card"><h3><span class="ic">⚙️</span> Descarga avanzada</h3><ul>
+        <li><b>Calidad de video</b>, <b>Cliente HiRes</b> (auto / always / never).</li>
+        <li><b>Peticiones / min</b>, <b>Concurrencia de artista</b>, <b>Máx. canciones / sesión</b>.</li>
+        <li><b>Reescribir metadata</b> en archivos existentes; <b>fecha del archivo</b> = fecha de lanzamiento.</li>
+        <li><b>Saltar recopilatorios / en vivo</b> (descargas de artista).</li>
+      </ul></div>
+      <div class="card"><h3><span class="ic">📃</span> Listas (.m3u)</h3><ul>
+        <li><b>Generar archivos .m3u</b>.</li>
+        <li><b>Generar para:</b> Canciones / Álbumes / Playlists / Mixes.</li>
+      </ul></div>
+      <div class="card"><h3><span class="ic">🚀</span> Rendimiento y filtros</h3><ul>
+        <li><b>Hilos</b>, <b>Retardo entre canciones</b>, <b>Retardo entre álbumes</b> (anti-bot).</li>
+        <li><b>Incrustar letras</b> en etiquetas; <b>guardar .lrc</b> aparte.</li>
+        <li>Filtros de <b>Singles</b> / <b>Videos</b>.</li>
+      </ul></div>
+      <div class="card"><h3><span class="ic">🎨</span> Apariencia</h3><ul>
+        <li><b>Idioma</b> — English / Español.</li>
+        <li><b>Tema</b> — violeta oscuro o claro.</li>
+        <li><b>Tamaño de letra</b> — Normal / Grande / Extra grande.</li>
+      </ul><p class="muted">Se bloquean mientras corre una descarga — termina o cancela primero.</p></div>
+    </div>
+    <figure>
+      <div class="frame"><div class="tt" aria-hidden="true"><i></i><i></i><i></i><span>tiddl-gui — Ajustes</span></div>
+        <img src="../assets/screenshots/02-settings.png" alt="La pestaña Ajustes con sus secciones plegables."></div>
+      <figcaption>Ajustes — estilo QBDLX, con cada opción de configuración expuesta.</figcaption>
+    </figure>
+  </section>
+
+  <section id="controls-es">
+    <p class="kicker">Mientras corre</p>
+    <h2>Progreso, reanudar y el registro</h2>
+    <ul style="padding-left:1.1em">
+      <li><b>Reanudar</b> — marca <span class="ui">Reanudar (saltar recursos ya hechos)</span> para saltar archivos que ya están en tu biblioteca al re-correr.</li>
+      <li><b>Re-descargar archivos existentes</b> — lo contrario: fuerza una copia nueva.</li>
+      <li><b>Cancelar</b> — detiene la corrida limpiamente; el registro se congela al instante y no arranca nada más.</li>
+      <li><b>Copiar registro</b> — copia el log completo con horas al portapapeles para diagnóstico.</li>
+      <li><b>Bloqueo de descarga única</b> — varias ventanas no pueden golpear la API a la vez.</li>
+    </ul>
+    <div class="note tip"><span class="lbl">“Exists” no es un error</span>Cuando una canción muestra <b>Exists</b>, ya está en tu carpeta de escaneo / biblioteca y se salta correctamente. <code>Total downloads: 0</code> significa que ya estaba todo — nada falló.</div>
+  </section>
+
+  <section id="help-es">
+    <p class="kicker">Solución de problemas</p>
+    <h2>Preguntas frecuentes</h2>
+    <details><summary>Windows bloquea el instalador (SmartScreen)</summary><div class="body">El instalador no está firmado. Pulsa <b>Más información → Ejecutar de todas formas</b>. Es seguro; solo no tiene firma de código.</div></details>
+    <details><summary>macOS dice que la app está “dañada y no se puede abrir”</summary><div class="body">Es la cuarentena de una app sin firmar. Corre una vez en Terminal: <code>chmod -R u+w "/Applications/tiddl-gui.app"</code> y luego <code>xattr -cr "/Applications/tiddl-gui.app"</code>, y ábrela de nuevo.</div></details>
+    <details><summary>Me limitan la tasa / errores 429</summary><div class="body">Deja <b>Cliente HiRes = auto</b> (Ajustes → Descarga avanzada) para usar el cliente Hi-Res solo en MAX — eso evita la mayoría de los 429. Si bajas mucho, baja <b>Peticiones / min</b> y añade un <b>Retardo entre canciones</b> pequeño.</div></details>
+    <details><summary>“Not logged in”</summary><div class="body">Pulsa <b>Log in</b> y aprueba <b>las dos</b> ventanas del navegador (Hi-Res + Lossless). La calidad sin pérdida / Hi-Res requiere una suscripción HiFi activa.</div></details>
+    <details><summary>Las descargas quedan con la estructura de carpetas equivocada</summary><div class="body">Para una playlist, el <b>diálogo de expansión</b> (Como playlist / Álbumes completos / Discografías de artista / Solo las canciones) elige la estructura. Las plantillas están en <b>Ajustes → Nombres de archivo</b>; la pestaña <b>Ayuda</b> lista cada variable.</div></details>
+    <details><summary>¿Dónde se guardan mis ajustes?</summary><div class="body"><b>Guardar como predeterminados</b> escribe en el <code>config.toml</code> de tiddl (primero se crea un respaldo con fecha), así la CLI y el GUI comparten los mismos valores.</div></details>
+
+    <figure>
+      <div class="frame"><div class="tt" aria-hidden="true"><i></i><i></i><i></i><span>tiddl-gui — Ayuda</span></div>
+        <img src="../assets/screenshots/03-help.png" alt="La pestaña Ayuda dentro de la app listando variables de plantilla de nombres."></div>
+      <figcaption>La pestaña Ayuda dentro de la app documenta cada variable de plantilla de nombres.</figcaption>
+    </figure>
+  </section>
+
+  <footer>
+    <p>tiddl GUI by ElVigilante — un front-end de escritorio para el descargador <a class="inline" href="https://github.com/np3ir/tiddl-elvigilante-gui">tiddl-elvigilante</a>.</p>
+    <p class="disc">Solo para uso personal, educativo y de archivo. Sin afiliación con ningún servicio de streaming de música. Eres responsable de cumplir los términos de servicio de tu servicio de streaming y las leyes de derechos de autor locales. El contenido descargado es para uso personal y no puede compartirse ni redistribuirse.</p>
+  </footer>
+</div>
+</main>
+
+<script>
+  function setLang(l){
+    var en = document.getElementById('lang-en');
+    var es = document.getElementById('lang-es');
+    var isEn = l === 'en';
+    en.classList.toggle('lang-hide', !isEn);
+    es.classList.toggle('lang-hide', isEn);
+    document.getElementById('btn-en').setAttribute('aria-pressed', String(isEn));
+    document.getElementById('btn-es').setAttribute('aria-pressed', String(!isEn));
+    document.documentElement.lang = l;
+    document.querySelectorAll('.bar-nav a').forEach(function(a){
+      var txt = a.getAttribute(isEn ? 'data-en' : 'data-es');
+      if(txt) a.textContent = txt;
+      var base = a.getAttribute('href').replace('-es','');
+      a.setAttribute('href', isEn ? base : base + '-es');
+    });
+    try{ localStorage.setItem('tiddl-manual-lang', l); }catch(e){}
+  }
+  (function(){
+    var saved = 'es';
+    try{ saved = localStorage.getItem('tiddl-manual-lang') || 'es'; }catch(e){}
+    setLang(saved === 'en' ? 'en' : 'es');
+  })();
+</script>
+</body>
+</html>

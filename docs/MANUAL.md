@@ -2,13 +2,14 @@
 
 **English** · [Español](MANUAL.es.md) · [← Back to README](../README.md)
 
-> For personal, educational and archival use only. Not affiliated with TIDAL. You are
-> responsible for complying with TIDAL's terms of service and your local copyright laws.
+> For personal, educational and archival use only. Not affiliated with any music streaming
+> service. You are responsible for complying with your streaming service's terms of service and
+> your local copyright laws.
 > Downloaded content is for personal use and may not be shared or redistributed.
 
 Paste a link, pick the quality, and go — a desktop app with the full power of the
 [`tiddl`](https://github.com/np3ir/tiddl-elvigilante) engine underneath. Requires an active
-TIDAL subscription (HiFi for lossless).
+music-service subscription (HiFi for lossless).
 
 ---
 
@@ -29,9 +30,9 @@ TIDAL subscription (HiFi for lossless).
   xattr -cr "/Applications/tiddl-gui.app"
   ```
 
-### 2. Log in to TIDAL
+### 2. Log in to your account
 
-Open the app and click **Log in to TIDAL**. It uses TIDAL's device-code flow, so your browser
+Open the app and click **Log in**. It uses a device-code login flow, so your browser
 opens to approve the app.
 
 > **Important:** the browser opens **twice** — once for Hi-Res and once for Lossless.
@@ -40,7 +41,7 @@ opens to approve the app.
 
 ### 3. Your first download
 
-On the **Download** tab, paste one or more TIDAL links into **TIDAL links** — a track, album,
+On the **Download** tab, paste one or more music links into **the links box** — a track, album,
 playlist, artist or mix, **one per line**. Pick a **Quality**, then press **Download**. The
 progress bar shows `N/M · %`, the current track and a timestamped log.
 
@@ -67,12 +68,12 @@ Two independent controls decide *what* you get and *how strictly*.
 
 - **Automatic (original link)** — keeps the album or track from the link you supplied, including
   Atmos when that's the linked edition.
-- **Stereo only** — searches TIDAL for a matching stereo edition and rejects an Atmos manifest
+- **Stereo only** — searches the catalog for a matching stereo edition and rejects an Atmos manifest
   before any audio transfers. Works on direct **album** links **and** whole **artist** links; an
   album with no stereo edition keeps its original.
 - **Flexible** — treats the selected quality as a **ceiling** and uses the best available tier at
   or below it (MAX may fall back to High, Normal or Low).
-- **Strict** — requires the **exact** tier. If TIDAL won't deliver it, the download stops instead
+- **Strict** — requires the **exact** tier. If the service won't deliver it, the download stops instead
   of quietly degrading.
 
 > **Check first, download later:** use **Check available versions** (direct album links only, with
@@ -99,8 +100,8 @@ templates come out right.
 > **Only that track**.
 
 **Skip compilations / live albums.** Under **Settings → Advanced download**, two checkboxes leave
-compilations and/or live albums out of whole-artist downloads. They're identified from the TIDAL
-artist page — the same Compilations / Live sections the TIDAL app shows — so the match is reliable.
+compilations and/or live albums out of whole-artist downloads. They're identified from the
+service's artist page — the same Compilations / Live sections the app shows — so the match is reliable.
 Off by default.
 
 ![The playlist dialog](../assets/screenshots/04-playlist-dialog.png)
@@ -162,7 +163,7 @@ once, and open it again.
 client is only used at MAX — that avoids most 429s. If you're downloading a lot, lower
 **Requests / min** and add a small **Track delay**.
 
-**"Not logged in to TIDAL".** Click **Log in to TIDAL** and approve **both** browser windows
+**"Not logged in".** Click **Log in** and approve **both** browser windows
 (Hi-Res + Lossless). Lossless/Hi-Res needs an active HiFi subscription.
 
 **Wrong folder structure.** For a playlist, the expand dialog (As playlist / Full albums / Artist

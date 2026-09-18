@@ -2,13 +2,14 @@
 
 [English](MANUAL.md) · **Español** · [← Volver al README](../README.es.md)
 
-> Solo para uso personal, educativo y de archivo. Sin afiliación con TIDAL. Eres responsable de
-> cumplir los términos de servicio de TIDAL y las leyes de derechos de autor locales. El contenido
+> Solo para uso personal, educativo y de archivo. Sin afiliación con ningún servicio de streaming
+> de música. Eres responsable de cumplir los términos de servicio de tu servicio de streaming y las
+> leyes de derechos de autor locales. El contenido
 > descargado es para uso personal y no puede compartirse ni redistribuirse.
 
 Pega un enlace, elige la calidad y listo — una app de escritorio con todo el poder del motor
 [`tiddl`](https://github.com/np3ir/tiddl-elvigilante) por debajo. Requiere una suscripción activa a
-TIDAL (HiFi para calidad sin pérdida).
+un servicio de música (HiFi para calidad sin pérdida).
 
 ---
 
@@ -29,10 +30,10 @@ TIDAL (HiFi para calidad sin pérdida).
   xattr -cr "/Applications/tiddl-gui.app"
   ```
 
-### 2. Inicia sesión en TIDAL
+### 2. Inicia sesión en tu cuenta
 
-Abre la app y pulsa **Log in to TIDAL**. Usa el flujo de código de dispositivo de TIDAL, así que tu
-navegador se abre para aprobar la app.
+Abre la app y pulsa **Log in**. Usa un flujo de inicio de sesión por código de dispositivo, así que
+tu navegador se abre para aprobar la app.
 
 > **Importante:** el navegador se abre **dos veces** — una para Hi-Res y otra para Lossless.
 > **Aprueba las dos.** El login solo cuenta como completo cuando se guardan ambos tokens de calidad.
@@ -40,7 +41,7 @@ navegador se abre para aprobar la app.
 
 ### 3. Tu primera descarga
 
-En la pestaña **Descargar**, pega uno o más enlaces de TIDAL en **Enlaces de TIDAL** — canción,
+En la pestaña **Descargar**, pega uno o más enlaces de música en **la caja de enlaces** — canción,
 álbum, playlist, artista o mix, **uno por línea**. Elige una **Calidad** y pulsa **Descargar**. La
 barra muestra `N/M · %`, la canción actual y un registro con hora.
 
@@ -67,12 +68,12 @@ Dos controles independientes deciden *qué* obtienes y *con cuánta rigidez*.
 
 - **Automática (enlace original)** — mantiene el álbum o canción del enlace que diste, incluido
   Atmos si esa es la edición enlazada.
-- **Solo estéreo** — busca en TIDAL una edición estéreo equivalente y rechaza un manifiesto Atmos
+- **Solo estéreo** — busca en el catálogo una edición estéreo equivalente y rechaza un manifiesto Atmos
   antes de transferir audio. Funciona en enlaces de **álbum** directos **y** de **artista**
   completo; un álbum sin edición estéreo conserva la original.
 - **Flexible** — trata la calidad elegida como un **techo** y usa el mejor nivel disponible igual o
   por debajo (MAX puede bajar a High, Normal o Low).
-- **Estricta** — exige el nivel **exacto**. Si TIDAL no lo entrega, la descarga se detiene en vez
+- **Estricta** — exige el nivel **exacto**. Si el servicio no lo entrega, la descarga se detiene en vez
   de degradarse en silencio.
 
 > **Revisa antes de bajar:** usa **Comprobar versiones disponibles** (solo enlaces de álbum
@@ -100,8 +101,8 @@ estructura de carpetas y las plantillas salgan bien.
 
 **Saltar recopilatorios / álbumes en vivo.** En **Ajustes → Descarga avanzada**, dos casillas dejan
 fuera recopilatorios y/o discos en vivo en descargas de artista completo. Se identifican desde la
-página del artista en TIDAL — las mismas secciones de Recopilatorios / En vivo que muestra la app
-de TIDAL — así que el emparejamiento es fiable. Desactivadas por defecto.
+página del artista del servicio — las mismas secciones de Recopilatorios / En vivo que muestra la
+app — así que el emparejamiento es fiable. Desactivadas por defecto.
 
 ![El diálogo de playlist](../assets/screenshots/04-playlist-dialog.png)
 
@@ -168,7 +169,7 @@ firmar. Corre `chmod -R u+w "/Applications/tiddl-gui.app"` y luego
 para usar el cliente Hi-Res solo en MAX — eso evita la mayoría de los 429. Si bajas mucho, baja
 **Peticiones / min** y añade un **Retardo entre canciones** pequeño.
 
-**"Not logged in to TIDAL".** Pulsa **Log in to TIDAL** y aprueba **las dos** ventanas del
+**"Not logged in".** Pulsa **Log in** y aprueba **las dos** ventanas del
 navegador (Hi-Res + Lossless). La calidad sin pérdida / Hi-Res requiere una suscripción HiFi activa.
 
 **Estructura de carpetas equivocada.** Para una playlist, el diálogo de expansión (Como playlist /
