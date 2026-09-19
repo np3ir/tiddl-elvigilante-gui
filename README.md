@@ -2,7 +2,13 @@
 
 **English** · [Español](README.es.md)
 
-📖 **[User Manual](docs/MANUAL.md)** — step-by-step guide (install, login, quality, playlists, settings).
+<p align="center">
+  <a href="https://np3ir.github.io/tiddl-elvigilante-gui/">
+    <img src="https://img.shields.io/badge/%F0%9F%93%96%20Read%20the%20Manual-Online-6d3ff2?style=for-the-badge&labelColor=1b1730" alt="Read the manual online">
+  </a>
+</p>
+
+**👉 [Open the online manual](https://np3ir.github.io/tiddl-elvigilante-gui/)** — install, login, quality, playlists & settings. Also available as [Markdown](docs/MANUAL.md).
 
 > [!WARNING]
 > This app is for personal, educational, and archival purposes only. It is not affiliated with any music streaming service. Users must ensure their use complies with their streaming service's terms of service and all applicable local copyright laws. Downloaded content is for personal use and may not be shared or redistributed. The developer assumes no responsibility for misuse of this app.
