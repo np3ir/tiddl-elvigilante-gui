@@ -60,7 +60,7 @@ Authoritative technical state is recorded in its
   unchanged; do not treat the 1.0.23 source pin as part of those binaries.
 - _(historical, do not use for reproduction)_ GUI 1.0.16 pinned engine
   `a13230e6861a2c12018aa11f334b2b8c1519bb05` (itself succeeding `862dec0…`; that revision added the
-  non-zero-exit-on-safety-stop and strict-Normal -> TIDAL `HIGH` fixes). Kept for provenance only.
+  non-zero-exit-on-safety-stop and strict-Normal -> service `HIGH` fixes). Kept for provenance only.
 
 ## Rebuild required (2026-08-19)
 
@@ -91,10 +91,10 @@ strict rejected it without downloading. The engine's no-candidate diagnostic
 was also corrected so an already-stereo source is no longer mislabeled Atmos.
 
 Album `8455110`, which has no lossless catalog tag, validated MAX flexible all
-the way down to LOW: TIDAL delivered a 2-channel HE-AAC file at the 96 kbps
+the way down to LOW: the service delivered a 2-channel HE-AAC file at the 96 kbps
 tier and the engine reported the degradation. Normal strict rejected that LOW
 manifest before transfer. The live test also led to two engine fixes: safety
-stops now exit non-zero, and strict Normal correctly means TIDAL `HIGH` rather
+stops now exit non-zero, and strict Normal correctly means service `HIGH` rather
 than `LOSSLESS`. Final engine regression: 328 passed, 3 skipped, 0 failed.
 
 ## Boundaries

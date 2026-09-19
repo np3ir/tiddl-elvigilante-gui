@@ -16,6 +16,6 @@
 
 - If you hit "closes after many artists", grab `gui-crash.log` — it now records
   what happened. Very large jobs (expanding a whole playlist into full
-  discographies in stereo) can still exhaust TIDAL's rate limits; do those in
+  discographies in stereo) can still exhaust the service's rate limits; do those in
   smaller batches and re-run `tiddl auth login` if the token gets flagged.
-- Bundled TIDAL engine → v1.4.2.
+- Bundled engine → v1.4.2.

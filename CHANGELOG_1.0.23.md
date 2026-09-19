@@ -15,7 +15,7 @@
   request budget.
 - **High and Max retain their intended behavior.** High prefers lossless FLAC
   without promoting the whole run to HiRes. Max requests 24-bit
-  `HI_RES_LOSSLESS` when TIDAL offers it and degrades according to the selected
+  `HI_RES_LOSSLESS` when the service offers it and degrades according to the selected
   quality policy when it does not.
 - **The session track limit now stops new work reliably.** Once
   `max_tracks_per_session` is reached, no new resource is dequeued or started;
@@ -40,7 +40,7 @@
   lo requiere. Ambos clientes comparten un solo presupuesto de peticiones.
 - **High y Max conservan el comportamiento esperado.** High prefiere FLAC sin
   pérdida sin promover toda la corrida a HiRes. Max solicita
-  `HI_RES_LOSSLESS` de 24 bits cuando TIDAL lo ofrece y degrada según la política
+  `HI_RES_LOSSLESS` de 24 bits cuando el servicio lo ofrece y degrada según la política
   de calidad seleccionada cuando no está disponible.
 - **El límite de pistas por sesión detiene de forma fiable el trabajo nuevo.** Al
   alcanzar `max_tracks_per_session`, no se toma ni inicia ningún recurso nuevo;

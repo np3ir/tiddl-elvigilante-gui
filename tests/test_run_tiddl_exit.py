@@ -1,6 +1,6 @@
 """Host-safe handling of the engine's cooperative-stop exit (engine v1.5.3+).
 
-A cooperative safety stop — Cancel, a TIDAL rate-limit (429) or a flagged/blocked
+A cooperative safety stop — Cancel, a service rate-limit (429) or a flagged/blocked
 account (401) — now reaches the in-process host as `click.exceptions.Exit`
 instead of a process-killing `sys.exit()`. `run_tiddl()` must:
 

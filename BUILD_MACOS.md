@@ -61,7 +61,7 @@ chmod +x release_macos.sh
    ```
    (Un DMG compilado localmente NO trae la marca; el problema solo aparece
    tras descargarlo.)
-3. La app debe pedir el login de TIDAL (device flow en el navegador),
+3. La app debe pedir el login del servicio de música (device flow en el navegador),
    luego configurar carpetas en Settings y probar una descarga.
 
 ## 4. Subir el DMG al release

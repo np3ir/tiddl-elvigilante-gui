@@ -9,7 +9,7 @@
 
 ## Engine
 
-- Bundled TIDAL engine → v1.3.2 (artist-catalog cache on top of the v1.3.1
+- Bundled engine → v1.3.2 (artist-catalog cache on top of the v1.3.1
   artist-URL stereo resolution).
 
 ## Validation

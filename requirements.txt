@@ -6,7 +6,7 @@ tomlkit>=0.13
 # hardening (run-wide 429 circuit breaker, bounded-memory worker pool, opt-in
 # --resume checkpoint) AND the fidelity quality cascade (max > high > atmos >
 # normal > low, with `atmos` as a -q rung; prefers FLAC over the Atmos AAC that
-# TIDAL serves at the LOSSLESS tier), on top of stereo resolution, flexible/
+# the service serves at the LOSSLESS tier), on top of stereo resolution, flexible/
 # strict quality policy, playback-manifest validation and the per-album resilience.
 # v1.5.3 added the host-safe cooperative stop: Cancel / rate-limit (429) /
 # account-flagged (401) now raise click.exceptions.Exit instead of calling

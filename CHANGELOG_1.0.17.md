@@ -19,9 +19,9 @@
 
 ## Engine
 
-- Bundled TIDAL engine updated to v1.3.1 (+ dedup polish): artist-URL stereo
+- Bundled engine updated to v1.3.1 (+ dedup polish): artist-URL stereo
   resolution, plus the earlier non-zero exit on a safety stop and the
-  strict `Normal` → TIDAL `HIGH` mapping.
+  strict `Normal` → `HIGH` mapping.
 
 ## Validation
 

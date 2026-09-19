@@ -8,7 +8,7 @@
 - Flexible mode treats the selected quality as a ceiling and chooses the
   highest available tier below it.
 - Strict mode requires the exact requested playback quality.
-- Stereo mode resolves alternate TIDAL editions and rejects Atmos manifests
+- Stereo mode resolves alternate stereo editions and rejects Atmos manifests
   before media transfer.
 - Added `Check available versions`, a catalog-only dry run for direct album links.
 
@@ -37,5 +37,5 @@
   with engine commit `862dec07`.
 - Windows installer compiled successfully with Inno Setup 6.7.3; it bundles
   FFmpeg and the verified application build.
-- No TIDAL account, playback or media request is required for the offline test
+- No streaming account, playback or media request is required for the offline test
   suite.

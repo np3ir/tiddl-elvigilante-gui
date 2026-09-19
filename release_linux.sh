@@ -88,7 +88,7 @@ tiddl by ElVigilante $VERSION (Linux x64)
 
 1. Instala ffmpeg:   sudo apt install ffmpeg   (o el equivalente de tu distro)
 2. Ejecuta:          ./tiddl-gui
-3. Inicia sesion en TIDAL desde la app y configura tus carpetas en Settings.
+3. Inicia sesion desde la app y configura tus carpetas en Settings.
 
 https://github.com/np3ir/tiddl-elvigilante-gui
 EOF
