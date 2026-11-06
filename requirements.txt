@@ -20,8 +20,11 @@ tomlkit>=0.13
 # Dolby Atmos tracks: skip-existing is scoped to each track's own folder, the real
 # on-disk name/casing is preserved, and an Atmos request treats Atmos as a distinct
 # modality (a same-titled stereo FLAC in another album no longer masks it).
-# This pin (main @c5e195a, PR #47) also adds two Windows fixes: the benign
+# v1.0.26 re-pin (main @4e2d678) adds: partial TIDAL release dates (year-only /
+# year-month) now resolve to the real year instead of the "(0001)" folder (PR #46),
+# plus the hardened Proactor-teardown match (PRs #48/#49).
+# Previous pin (main @c5e195a, PR #47) also adds two Windows fixes: the benign
 # ProactorEventLoop teardown noise (OSError WinError 10022) is silenced, and the
 # standalone cover with an empty [cover.templates] is now saved next to the audio
 # as cover.jpg (album/track/playlist) instead of at the download root.
-tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@c5e195aa7d7dc4b28a4dbbb9ce22664de1f396d8
+tiddl-elvigilante @ git+https://github.com/np3ir/tiddl-elvigilante.git@4e2d678dd07a08a729599253dc94f6a074200470
