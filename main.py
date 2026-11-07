@@ -1481,6 +1481,16 @@ class TiddlGui:
         except Exception:
             fn()
 
+    def open_url(self, url: str):
+        """Open ``url`` in the system browser. Safe from any thread.
+
+        ``Page.launch_url`` is a coroutine function in Flet 0.86: calling it
+        without awaiting (e.g. ``on_click=lambda e: page.launch_url(url)``) just
+        creates a coroutine that is never run, so the click silently did
+        nothing. ``run_task`` schedules it on the page's event loop.
+        """
+        self.page.run_task(self.page.launch_url, url)
+
     def refresh(self, *controls):
         """Thread-safe page.update(), optionally scoped to specific controls.
 
@@ -1683,8 +1693,7 @@ class TiddlGui:
                 url = m.group().strip("'\"!.,)")
                 if url not in launched:
                     launched.add(url)
-                    loop = self.page.session.connection.loop
-                    loop.call_soon_threadsafe(self.page.launch_url, url)
+                    self.open_url(url)
                     self.set_status(self.t("login_wait"))
 
         try:
@@ -1826,7 +1835,7 @@ class TiddlGui:
         self.update_btn = ft.TextButton(
             content=self.t("update_available"),
             icon=ft.Icons.SYSTEM_UPDATE,
-            on_click=lambda e: self.page.launch_url(RELEASES_URL),
+            on_click=lambda e: self.open_url(RELEASES_URL),
             visible=False,
         )
         self.cancel_btn = ft.OutlinedButton(
@@ -2278,7 +2287,7 @@ class TiddlGui:
                         ft.TextButton(
                             content="GitHub",
                             icon=ft.Icons.OPEN_IN_NEW,
-                            on_click=lambda e: self.page.launch_url(self.GITHUB_URL),
+                            on_click=lambda e: self.open_url(self.GITHUB_URL),
                         ),
                         self.settings_status,
                     ],
