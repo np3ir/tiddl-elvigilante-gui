@@ -26,19 +26,33 @@ def _launch_url_uses():
     tree = ast.parse(MAIN.read_text(encoding="utf-8"))
     uses = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             for sub in ast.walk(node):
                 if isinstance(sub, ast.Attribute) and sub.attr == "launch_url":
                     uses.append((node.name, sub.lineno))
     return uses
 
 
-def test_launch_url_only_referenced_inside_open_url_helper():
-    uses = _launch_url_uses()
-    assert uses, "open_url helper should reference launch_url"
-    assert {name for name, _ in uses} == {"open_url"}, uses
+def test_launch_url_only_referenced_inside_the_async_helper():
+    # Page.launch_url is async and run_task rejects it (deprecated wrapper), so
+    # no other function in main.py may reference a `.launch_url` attribute.
+    names = {name for name, _ in _launch_url_uses()}
+    assert names == {"_launch_url"}, names
 
 
-def test_open_url_schedules_with_run_task():
+def test_open_url_schedules_a_real_coroutine_function():
     src = MAIN.read_text(encoding="utf-8")
-    assert "self.page.run_task(self.page.launch_url, url)" in src
+    assert "self.page.run_task(self._launch_url, url)" in src
+    assert "await ft.UrlLauncher().launch_url(url)" in src
+
+
+def test_run_task_accepts_the_helper_but_rejects_page_launch_url():
+    class _P:  # mimic what run_task checks
+        pass
+
+    async def _launch_url(url):
+        return None
+
+    assert inspect.iscoroutinefunction(_launch_url)
+    assert not inspect.iscoroutinefunction(ft.Page.launch_url)  # why it was rejected
+    assert inspect.iscoroutinefunction(ft.UrlLauncher.launch_url)

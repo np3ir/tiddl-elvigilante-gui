@@ -1487,9 +1487,14 @@ class TiddlGui:
         ``Page.launch_url`` is a coroutine function in Flet 0.86: calling it
         without awaiting (e.g. ``on_click=lambda e: page.launch_url(url)``) just
         creates a coroutine that is never run, so the click silently did
-        nothing. ``run_task`` schedules it on the page's event loop.
+        nothing. ``run_task`` schedules a coroutine on the page's event loop.
         """
-        self.page.run_task(self.page.launch_url, url)
+        self.page.run_task(self._launch_url, url)
+
+    async def _launch_url(self, url: str):
+        # A real coroutine function: run_task rejects Page.launch_url itself
+        # (its @deprecated wrapper hides that it is async).
+        await ft.UrlLauncher().launch_url(url)
 
     def refresh(self, *controls):
         """Thread-safe page.update(), optionally scoped to specific controls.
