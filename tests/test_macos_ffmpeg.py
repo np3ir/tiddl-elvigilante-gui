@@ -404,4 +404,4 @@ def test_19_app_version_unchanged_ast():
 def test_20_engine_and_flet_pins_unchanged():
     req = _read(os.path.join(ROOT, "requirements.txt"))
     assert "flet==0.86.1" in req
-    assert "tiddl-elvigilante.git@13c4e9151cc3fb41954ca5312f11c5d34e2ad181" in req
+    assert f"tiddl-elvigilante.git@{tep.ENGINE_V1_5_5_COMMIT}" in req

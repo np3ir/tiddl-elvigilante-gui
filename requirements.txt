@@ -1,5 +1,5 @@
 flet==0.86.1
-tomlkit>=0.13
+tomlkit==0.15.2
 # tiddl is bundled INSIDE the app (single binary): flet build reads this
 # requirements file and includes the package, so the GUI runs tiddl in-process
 # with no separate tiddl.exe. Pinned to the engine commit with the giant-run

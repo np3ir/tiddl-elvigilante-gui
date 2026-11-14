@@ -17,8 +17,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # The exact engine commit published as v1.5.5 (post-merge tiddl-elvigilante main).
-ENGINE_V1_5_5_COMMIT = "13c4e9151cc3fb41954ca5312f11c5d34e2ad181"
-EXPECTED_APP_VERSION = "1.0.24"
+# Bump these two (and only these) on every release; other tests import them.
+ENGINE_V1_5_5_COMMIT = "33f17ec105138e50051426e8eac6eb30f977779a"
+EXPECTED_APP_VERSION = "1.0.28"
 
 
 def _requirements_text() -> str:
@@ -134,7 +135,7 @@ def test_tiddl_commit_single_module_assignment_is_derived_call():
 
 
 def test_reference_source_passes_both_checks():
-    good = 'APP_VERSION = "1.0.24"\nTIDDL_COMMIT = _tiddl_commit()\n'
+    good = 'APP_VERSION = "1.0.28"\nTIDDL_COMMIT = _tiddl_commit()\n'
     assert _app_version_ok(good)
     assert _tiddl_commit_ok(good)
 
@@ -143,9 +144,9 @@ def test_reference_source_passes_both_checks():
 # Negative: synthetic sources with a duplicate/overriding assignment are rejected
 # (these are exactly what a first-match text search would have wrongly accepted)
 # ---------------------------------------------------------------------------
-_DUP_APP_VERSION = 'APP_VERSION = "1.0.24"\nAPP_VERSION = "9.9.9"\n'
+_DUP_APP_VERSION = 'APP_VERSION = "1.0.28"\nAPP_VERSION = "9.9.9"\n'
 _APP_VERSION_OVERRIDDEN_IN_IF = (
-    'APP_VERSION = "1.0.24"\nif True:\n    APP_VERSION = "9.9.9"\n'
+    'APP_VERSION = "1.0.28"\nif True:\n    APP_VERSION = "9.9.9"\n'
 )
 _APP_VERSION_WRONG_VALUE = 'APP_VERSION = "9.9.9"\n'
 _TIDDL_HARDCODED_AFTER = 'TIDDL_COMMIT = _tiddl_commit()\nTIDDL_COMMIT = "deadbeef"\n'

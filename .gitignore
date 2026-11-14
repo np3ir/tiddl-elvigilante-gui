@@ -7,3 +7,8 @@ storage/
 cli-build/
 dist-linux/
 dist-mac/
+
+# local audit/handoff notes
+AUDITORIA_*.md
+CIERRE_*.md
+AUTORIZACION_*.md

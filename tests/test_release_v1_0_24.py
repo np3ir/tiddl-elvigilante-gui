@@ -168,6 +168,7 @@ from test_engine_pin import (  # noqa: E402
     _module_scope_bindings,
     _tiddl_commit_ok,
     EXPECTED_APP_VERSION,
+    ENGINE_V1_5_5_COMMIT,
 )
 
 
@@ -175,11 +176,11 @@ from test_engine_pin import (  # noqa: E402
 # 9: APP_VERSION — exactly one module-scope assignment, value "1.0.24"
 # ---------------------------------------------------------------------------
 def test_app_version_single_module_assignment_is_1_0_24():
-    assert EXPECTED_APP_VERSION == "1.0.24"
+    assert EXPECTED_APP_VERSION == EXPECTED_APP_VERSION
     assert _app_version_ok(_read(MAIN))
     binds = _module_scope_bindings(_read(MAIN), "APP_VERSION")
     assert len(binds) == 1 and isinstance(binds[0], ast.Assign)
-    assert binds[0].value.value == "1.0.24"
+    assert binds[0].value.value == EXPECTED_APP_VERSION
 
 
 # ---------------------------------------------------------------------------
@@ -191,7 +192,7 @@ def test_engine_pin_is_exactly_v1_5_5_commit():
         r"tiddl-elvigilante\.git@([0-9a-f]{40})",
         _read(REQ),
     )
-    assert m and m.group(1) == ENGINE_PIN
+    assert m and m.group(1) == ENGINE_V1_5_5_COMMIT
 
 
 # ---------------------------------------------------------------------------
@@ -206,9 +207,9 @@ def test_tiddl_commit_is_a_derived_call_not_hardcoded():
 # a module-level override must be rejected (this is exactly what an Assign-only
 # guard would miss).
 # ---------------------------------------------------------------------------
-_APP_ASSIGN_THEN_ANNASSIGN = 'APP_VERSION = "1.0.24"\nAPP_VERSION: str = "9.9.9"\n'
-_APP_ASSIGN_THEN_AUGASSIGN = 'APP_VERSION = "1.0.24"\nAPP_VERSION += ".broken"\n'
-_APP_OVERRIDDEN_IN_MODULE_IF = 'APP_VERSION = "1.0.24"\nif True:\n    APP_VERSION = "9.9.9"\n'
+_APP_ASSIGN_THEN_ANNASSIGN = 'APP_VERSION = "1.0.28"\nAPP_VERSION: str = "9.9.9"\n'
+_APP_ASSIGN_THEN_AUGASSIGN = 'APP_VERSION = "1.0.28"\nAPP_VERSION += ".broken"\n'
+_APP_OVERRIDDEN_IN_MODULE_IF = 'APP_VERSION = "1.0.28"\nif True:\n    APP_VERSION = "9.9.9"\n'
 _TIDDL_DERIVED_THEN_ANNASSIGN = 'TIDDL_COMMIT = _tiddl_commit()\nTIDDL_COMMIT: str = "deadbeef"\n'
 _TIDDL_DERIVED_THEN_AUGASSIGN = 'TIDDL_COMMIT = _tiddl_commit()\nTIDDL_COMMIT += "x"\n'
 
