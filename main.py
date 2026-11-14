@@ -1002,12 +1002,18 @@ def load_gui_settings() -> dict:
         return {}
 
 
+def write_text_atomic(path: Path, text: str) -> None:
+    """Write via a temp file + os.replace so a crash never leaves a half-written file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)
+
+
 def save_gui_settings(data: dict):
     import json
 
-    path = gui_settings_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    write_text_atomic(gui_settings_path(), json.dumps(data, indent=2))
 
 
 def run_tiddl(argv: list[str], on_line) -> int:
@@ -1384,10 +1390,20 @@ def other_instance_downloading() -> bool:
     return pid != os.getpid() and _pid_alive(pid)
 
 
-def acquire_download_lock():
+def acquire_download_lock() -> bool:
+    """Atomically create the lock file; False if a live other window holds it."""
     path = download_lock_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(str(os.getpid()), encoding="utf-8")
+    for _ in range(2):
+        try:
+            with open(path, "x", encoding="utf-8") as f:  # "x" fails if it exists
+                f.write(str(os.getpid()))
+            return True
+        except FileExistsError:
+            if other_instance_downloading():
+                return False
+            path.unlink(missing_ok=True)  # stale lock (dead pid or our own leftover)
+    return False
 
 
 def release_download_lock():
@@ -2922,8 +2938,7 @@ class TiddlGui:
         cfg_path = config_file_path()
         try:
             if cfg_path.exists():
-                stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
-                shutil.copy2(cfg_path, cfg_path.with_name(f"config.toml.bak_{stamp}"))
+                shutil.copy2(cfg_path, cfg_path.with_name("config.toml.bak"))
                 doc = tomlkit.parse(cfg_path.read_text(encoding="utf-8"))
             else:
                 cfg_path.parent.mkdir(parents=True, exist_ok=True)
@@ -3001,7 +3016,7 @@ class TiddlGui:
             if sep is not None and sep != "":
                 tpl["artist_separator"] = sep
 
-            cfg_path.write_text(tomlkit.dumps(doc), encoding="utf-8")
+            write_text_atomic(cfg_path, tomlkit.dumps(doc))
 
             # GUI-only keys live in gui.json, not in tiddl's config.
             gui_cfg = load_gui_settings()
@@ -3387,7 +3402,9 @@ class TiddlGui:
         self.log_view.controls.clear()
         self._log_buffer.clear()
         self._log_lines.clear()
-        acquire_download_lock()
+        if not acquire_download_lock():
+            self.show_busy_dialog()
+            return
         self.set_running(True)
         self.set_status(self.t("starting"))
         self.page.run_thread(self.worker, cmds)

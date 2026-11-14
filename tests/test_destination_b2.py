@@ -23,6 +23,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import main  # noqa: E402
+import test_engine_pin as tep  # noqa: E402  single source for version + engine pin
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATUS = ["destination", "status"]
@@ -688,7 +689,7 @@ def test_app_version_is_1_0_24_single_module_assignment():
     binds = _module_scope_assignments(src, "APP_VERSION")
     assert len(binds) == 1
     value = binds[0].value
-    assert isinstance(value, ast.Constant) and value.value == "1.0.24"
+    assert isinstance(value, ast.Constant) and value.value == tep.EXPECTED_APP_VERSION
 
 
 def test_engine_pin_is_still_v1_5_5_commit():
@@ -698,4 +699,4 @@ def test_engine_pin_is_still_v1_5_5_commit():
         r"tiddl-elvigilante\.git@([0-9a-f]{40})",
         req,
     )
-    assert m and m.group(1) == "13c4e9151cc3fb41954ca5312f11c5d34e2ad181"
+    assert m and m.group(1) == tep.ENGINE_V1_5_5_COMMIT
