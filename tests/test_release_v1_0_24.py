@@ -13,8 +13,8 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CHANGELOG = os.path.join(ROOT, "CHANGELOG_1.0.24.md")
-NOTES = os.path.join(ROOT, "RELEASE_NOTES_v1.0.24.md")
+CHANGELOG = os.path.join(ROOT, "docs", "archive", "CHANGELOG_1.0.24.md")
+NOTES = os.path.join(ROOT, "docs", "archive", "RELEASE_NOTES_v1.0.24.md")
 MAIN = os.path.join(ROOT, "main.py")
 REQ = os.path.join(ROOT, "requirements.txt")
 
