@@ -207,9 +207,9 @@ def test_tiddl_commit_is_a_derived_call_not_hardcoded():
 # a module-level override must be rejected (this is exactly what an Assign-only
 # guard would miss).
 # ---------------------------------------------------------------------------
-_APP_ASSIGN_THEN_ANNASSIGN = 'APP_VERSION = "1.0.28"\nAPP_VERSION: str = "9.9.9"\n'
-_APP_ASSIGN_THEN_AUGASSIGN = 'APP_VERSION = "1.0.28"\nAPP_VERSION += ".broken"\n'
-_APP_OVERRIDDEN_IN_MODULE_IF = 'APP_VERSION = "1.0.28"\nif True:\n    APP_VERSION = "9.9.9"\n'
+_APP_ASSIGN_THEN_ANNASSIGN = 'APP_VERSION = "1.0.29"\nAPP_VERSION: str = "9.9.9"\n'
+_APP_ASSIGN_THEN_AUGASSIGN = 'APP_VERSION = "1.0.29"\nAPP_VERSION += ".broken"\n'
+_APP_OVERRIDDEN_IN_MODULE_IF = 'APP_VERSION = "1.0.29"\nif True:\n    APP_VERSION = "9.9.9"\n'
 _TIDDL_DERIVED_THEN_ANNASSIGN = 'TIDDL_COMMIT = _tiddl_commit()\nTIDDL_COMMIT: str = "deadbeef"\n'
 _TIDDL_DERIVED_THEN_AUGASSIGN = 'TIDDL_COMMIT = _tiddl_commit()\nTIDDL_COMMIT += "x"\n'
 
